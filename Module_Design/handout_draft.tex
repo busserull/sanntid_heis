@@ -6,7 +6,7 @@
 \usepackage{pgf}
 \usetikzlibrary{arrows,automata}
 \usetikzlibrary{positioning}
-\title{Beastly Heis v1.0}
+\title{Beastly Heis v1.5}
 \author{Kolbjørn Austreng, Andreas Våge}
 
 \tikzset{
@@ -22,18 +22,20 @@
 
 \begin{document}
 \maketitle
-\begin{tikzpicture}[->,>=stealth']
+\begin{tikzpicture}[->,>=stealth]
 
  % Position of Env Controller 
  % Use previously defined 'state' as layout (see above)
  % use tabular for content to get columns/rows
  % parbox to limit width of the listing
- \node[state] (Env Controller) 
+ \node[state] (Env Controller)
  {\begin{tabular}{l}
-  \textbf{Env Controller}\\
+  \textbf{Env. Controller}\\
   \parbox{5cm}{\begin{itemize}
    \item[+] setLight(Order)
-   \item[-] gotoOrder(Order)
+	\item[+] newFloor(floor)
+	\item[+] newOrder(Order)
+	\item[+] gotoOrder(Order)
   \end{itemize}
   }
  \end{tabular}};
@@ -47,9 +49,9 @@
   {\begin{tabular}{l}
   \textbf{Backlog}\\
   \parbox{8cm}{\begin{itemize}
-   \item[+] StoreOrder(Order)
-   \item[+] getOrder(Order)
+   \item[+] storeOrder(Order)
    \item[+] updateOrderState(Order, newState)
+   \item[+] updateElevatorState(floor, direction)
    \item[+] getCost(Order)
    \item[-] calculateCosts()
 
@@ -64,7 +66,7 @@
   anchor=center,
   text width=8cm] (Communication) 
  {\begin{tabular}{l}
-  \textbf{Communication}\\
+  \textbf{Order Distributor}\\
   \parbox{8cm}{\begin{itemize}
    \item[+] transmitOrder(Order)
    \item[+] claimOrder(Order, cost)
@@ -76,13 +78,24 @@
 
  
  % draw the paths and and print some Text below/above the graph
- \path[<->] (Env Controller)  edge[bend left=20]   (Backlog)
- (Env Controller)        edge[bend right=20]  (Communication)
+ \path[<->] (Env Controller)  edge[bend left=30]   (Backlog)
+ %(Env Controller)        edge[bend right=20]  (Communication)
  %(Communication)     edge[loop below]    node[anchor=north,below]{$SC_n\neq 0$} (Communication)
  (Communication)     edge                 (Backlog);
 
+% Tacked on orbital data
+\begin{scope}[-]
+\begin{scope}[xshift=0.8cm,yshift=-0.2cm]
+\path[draw] (-2.8,2.3) -- (-2.8,3);
+\path[draw,dashed, fill = blue!30] (-2.8, 3) circle (0.3) node[above = 0.3cm] {C driver};
+\end{scope}
+\path[draw] (3.45,-4.5) -- (2.45,-4.5);
+\path[draw,dashed, fill = blue!30] (2.45,-4.5) circle (0.3) node[left = 0.3cm] {TCP interface};
+\end{scope}
+
+
 \end{tikzpicture}
-\section*{Oder object}
+\section*{Order object}
 \begin{tabu}{|X|X|}
 \hline
 \textbf{Order} & Comment\\ \hline
@@ -95,8 +108,10 @@
 \section*{Environment Controller}
 \subsubsection*{+ setLight(Order)}
 Sets the light corresponding to the floor of an Order object.
-\subsubsection*{- gotoOrder(Order)}
-Moves the elevator from its current position to the floor of an Order object.
+\subsubsection*{+ newFloor(int)}
+Call from 
+\subsubsection*{+ newOrder(Order)}
+Function called by the C driver to inform 
 \section*{Backlog}
 \subsubsection*{+ storeOrder(Order) ok}
 Saves an order from either \textit{Environment Controller} or \textit{Communications} to the backlog. Returns acknowledgement.
