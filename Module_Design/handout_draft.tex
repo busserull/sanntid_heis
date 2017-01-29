@@ -22,6 +22,9 @@
 
 \begin{document}
 \maketitle
+\section*{Diagrams}
+\begin{figure}[h]
+\centering
 \begin{tikzpicture}[->,>=stealth]
 
  % Position of Env Controller 
@@ -92,9 +95,24 @@
 \path[draw] (3.45,-4.5) -- (2.45,-4.5);
 \path[draw,dashed, fill = blue!30] (2.45,-4.5) circle (0.3) node[left = 0.3cm] {TCP interface};
 \end{scope}
-
-
 \end{tikzpicture}
+\caption{Module diagram.}
+\end{figure}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[>=stealth]
+\path[draw, rounded corners, fill = white] (0,4) rectangle (2,5) node[midway] {\verb!Queued!};
+\path[draw, rounded corners, fill = white] (4,4) rectangle ++(4,1) node[midway] {\verb!Processed by <IP>!};
+\path[draw, rounded corners, fill = white] (0,1) rectangle ++(3,1) node[midway] {\verb!Timed out!};
+\path[draw, rounded corners, fill = white] (5,1) rectangle ++(2,1) node[midway] {\verb!Complete!};
+\path[draw,->] (2,4.5) -- ++(2,0);
+\path[draw,->] (6, 4) -- ++(0,-2);
+\path[draw,->] (4.3,4) -- (3,1.7);
+\path[draw,->] (2.7,2) -- (4,4.3);
+\path (1,5) node[above] {(Start)};
+\end{tikzpicture}
+\caption{Order life stages.}
+\end{figure}
 \section*{Order object}
 \begin{tabu}{|X|X|}
 \hline
