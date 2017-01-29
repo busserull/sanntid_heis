@@ -1,6 +1,6 @@
 % EPC flow charts
 % Author: Fabian Schuh
-\documentclass{minimal}
+\documentclass[11pt,a4paper]{article}
 
 \usepackage{pgf}
 \usepackage{tikz}
@@ -28,58 +28,41 @@
  % Use previously defined 'state' as layout (see above)
  % use tabular for content to get columns/rows
  % parbox to limit width of the listing
- \node[state] (Env Controller) 
- {\begin{tabular}{l}
-  \textbf{Env Controller}\\
-  \parbox{4cm}{\begin{itemize}
-   \item + setLight(Order)
-   \item - gotoOrder(Order)
-  \end{itemize}
-  }
- \end{tabular}};
+ \node[state,text width=4cm] (Env Controller) 
+ {\textbf{Env Controller}};
 
  \node[state,       % layout (defined above)
-  text width=6cm,   % max text width
-  yshift=2cm,       % move 2cm in y
-  right of=Env Controller,   
-  node distance=6.5cm,  
+  text width=4cm,   % max text width      
+  above of=Env Controller,   
+  node distance=4.5cm,  
   anchor=center] (Backlog)  % posistion relative to the center of the 'box'
-  {\begin{tabular}{l}
-  \textbf{Backlog}\\
-  \parbox{6cm}{\begin{itemize}
-   \item + StoreOrder(Order)
-   \item + getOrder(Order)
-   \item + updateOrderState(Order,newState)
-   \item + getCost(Order)
-   \item - calculateCosts()
-
-  \end{itemize}
-  }
- \end{tabular}};
+  {\textbf{Backlog}};
  
  % STATE Communication
  \node[state,
-  below of=Backlog,
-  yshift=-2cm,
+  above of=Backlog,
+  node distance=4.5cm,
   anchor=center,
-  text width=6cm] (Communication) 
- {\begin{tabular}{l}
-  \textbf{Communication}\\
-  \parbox{6cm}{\begin{itemize}
-   \item + transmitOrder(Order)
-   \item + claimOrder(Order)
-   \item + updateOrderState(Order,newState)
+  text width=4cm] (Communication) 
+ {\textbf{Order Distributor}};
 
-  \end{itemize}
-  }
- \end{tabular}};
+ \node[state,
+  below of=Env Controller,
+  node distance=4.5cm,
+  anchor=center,
+  text width=4cm] (Driver) 
+ {\textbf{Driver}};
 
  
  % draw the paths and and print some Text below/above the graph
- \path[<->] (Env Controller)  edge[bend left=20]   (Backlog)
- (Env Controller)        edge[bend right=20]  (Communication)
- %(Communication)     edge[loop below]    node[anchor=north,below]{$SC_n\neq 0$} (Communication)
- (Communication)     edge                 (Backlog);
+ \draw[<-] (Env Controller) edge[bend left=20] node[pos=0.5,left]{setLight} (Backlog);
+ \draw[->](Env Controller) edge[bend right=20] node[pos=0.5,right]{updateElevatorState} (Backlog);
+
+ \draw[->](Communication) edge[bend right=20] node[pos=0.5,left]{storeOrder} (Backlog);
+ \draw[<-](Communication) edge[bend left=20] node[pos=0.5,right]{claimOrder} (Backlog);
+
+ \draw[->](Env Controller) edge[bend right=20] node[pos=0.5,left]{storeOrder} (Driver);
+ \draw[<-](Env Controller) edge[bend left=20] node[pos=0.5,right]{claimOrder} (Driver);
 
 \end{tikzpicture}
 \end{document}
