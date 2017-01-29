@@ -88,7 +88,7 @@
 
 % Tacked on orbital data
 \begin{scope}[-]
-\begin{scope}[xshift=0.8cm,yshift=-0.2cm]
+\begin{scope}[xshift=0.8cm,yshift=-0.4cm]
 \path[draw] (-2.8,2.3) -- (-2.8,3);
 \path[draw,dashed, fill = blue!30] (-2.8, 3) circle (0.3) node[above = 0.3cm] {C driver};
 \end{scope}
@@ -96,7 +96,7 @@
 \path[draw,dashed, fill = blue!30] (2.45,-4.5) circle (0.3) node[left = 0.3cm] {TCP interface};
 \end{scope}
 \end{tikzpicture}
-\caption{Module diagram.}
+\caption{System module diagram.}
 \end{figure}
 \begin{figure}[h]
 \centering
@@ -126,26 +126,28 @@
 \section*{Environment Controller}
 \subsubsection*{+ setLight(Order)}
 Sets the light corresponding to the floor of an Order object.
-\subsubsection*{+ newFloor(int)}
-Call from 
+\subsubsection*{+ newFloor(int floor)}
+Call from C driver to communicate to \textit{Environment Controller} that a new floor has been reached.
 \subsubsection*{+ newOrder(Order)}
-Function called by the C driver to inform 
+Call from C driver to communicate to \textit{Environment Controller} that a new order has been created.
+\subsubsection*{+ gotoOrder(Order)}
+Sends the elevator to the floor of a specific order.
 \section*{Backlog}
 \subsubsection*{+ storeOrder(Order) ok}
-Saves an order from either \textit{Environment Controller} or \textit{Communications} to the backlog. Returns acknowledgement.
-\subsubsection*{+ getOrder(Order) ok}
-Returns to the \textit{Environment Controller} the next most feasible order. Returns acknowledgement if such an order exists, no-acknowledgement if there are no orders.
-\subsubsection*{updateOrderState(Order, newState) ok}
-Changes the state of an Order object. Returns acknowledgement.
+Saves an order from either \textit{Environment Controller} or \textit{Order Distributor} to the backlog. Returns acknowledgement.
+\subsubsection*{+ updateOrderState(Order, newState) ok}
+Changes the state of a specific order. Returns acknowledgement.
+\subsubsection*{+ updateElevatorState(int floor, enum direction}
+Communicates the position and direction of the elevator to the \textit{Backlog}.
 \subsubsection*{+ getCost(Order) cost}
 Returns the cost of taking a specific order for this elevator.
 \subsubsection*{- calculateCosts()}
 Calculates the costs of all the orders in the backlog for this elevator.
-\section*{Communication}
+\section*{Order Distributor}
 \subsubsection*{+ transmitOrder(Order) ok}
-Transmits an Order object to all the other nodes in the network. Acknowledges if at least one other elevator received the order transmit.
+Transmits an Order object to all the other nodes in the network. Acknowledges if at least one other elevator received the order transmit, or there are no other elevators in the network.
 \subsubsection*{+ claimOrder(Order, cost) ok}
-Attempts to claim an order in the backlog. Transmits own cost of taking on this order. Acknowledges if no other elevators have a lower cost on specified order.
+Attempts to claim an order in the \textit{Backlog}. Transmits own cost of taking on this order. Acknowledges if no other elevators have a lower cost on the specified order.
 \subsubsection*{+ updateOrderState(Order, newState) ok}
 Broadcasts an order state update to ensure that the backlogs are identical.
 \end{document}
