@@ -147,6 +147,65 @@
 
 
 \begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth']
+ \node[] (Supervisor) 
+ {\parbox{1.1cm}{start()\\stop()}};
+
+ \node[state,
+  above of=Supervisor,
+  node distance=1.5cm,  
+  anchor=center,
+  text width=3.5cm] (SUPERVISOR) 
+ {\textbf{Supervisor}};
+
+ \node[state,
+  below left of=Supervisor,
+  node distance=5cm,
+  xshift=1.5cm,   
+  anchor=center,
+  text width=3.5cm] (Env Controller) 
+ {\textbf{Env. Controller}};
+
+ \node[state,       % layout (defined above)
+  text width=3.5cm,   % max text width      
+  below right of=Supervisor,
+  xshift=-1.5cm,   
+  node distance=5cm,  
+  anchor=center] (Backlog)  % posistion relative to the center of the 'box'
+  {\textbf{Backlog}};
+ 
+ % STATE Communication
+ \node[state,
+  right of=Backlog,
+  node distance=4cm,
+  anchor=center,
+  text width=3.5cm] (Communication) 
+ {\textbf{Order Distributor}};
+
+ \node[state,
+  left of=Env Controller,
+  node distance=4cm,
+  anchor=center,
+  text width=3.5cm] (Driver) 
+ {\textbf{Driver}};
+
+ 
+ % draw the paths and and print some Text below/above the graph
+ 
+ \draw[->](Supervisor) edge[bend right=20] node[pos=0.5,left]{} (Driver);
+ \draw[->](Supervisor) edge[bend right=20] node[pos=0.5,left]{} (Env Controller);
+ \draw[->](Supervisor) edge[bend left=20] node[pos=0.5,left]{} (Backlog);
+ \draw[->](Supervisor) edge[bend left=20] node[pos=0.5,left]{} (Communication);
+ \draw[->](SUPERVISOR) edge node[pos=0.5,left]{} (Supervisor);
+
+\end{tikzpicture}
+\caption{Supervisor}
+\end{figure}
+
+
+
+\begin{figure}[h]
 \centering
 \begin{tikzpicture}
 
