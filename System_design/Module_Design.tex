@@ -29,7 +29,7 @@
  % use tabular for content to get columns/rows
  % parbox to limit width of the listing
  \node[state,text width=4cm] (Env Controller) 
- {\textbf{Env Controller}};
+ {\textbf{Env. Controller}};
 
  \node[state,       % layout (defined above)
   text width=4cm,   % max text width      
@@ -55,14 +55,14 @@
 
  
  % draw the paths and and print some Text below/above the graph
- \draw[<-] (Env Controller) edge[bend left=20] node[pos=0.5,left]{setLight} (Backlog);
- \draw[->](Env Controller) edge[bend right=20] node[pos=0.5,right]{updateElevatorState} (Backlog);
+ \draw[<-] (Env Controller) edge[bend left=20] node[pos=0.5,left]{\parbox{2.5cm}{setLight(...)\\gotoOrder(...)}}(Backlog);
+ \draw[->](Env Controller) edge[bend right=20] node[pos=0.5,right]{\parbox{4cm}{updateElevatorState(...)\\updateOrderState(...)\\storeOrder(...)}} (Backlog);
 
- \draw[->](Communication) edge[bend right=20] node[pos=0.5,left]{storeOrder} (Backlog);
- \draw[<-](Communication) edge[bend left=20] node[pos=0.5,right]{claimOrder} (Backlog);
+ \draw[->](Communication) edge[bend right=20] node[pos=0.5,left]{\parbox{3.6cm}{getCost(...)\\storeOrder(...)\\updateOrderState(...)}} (Backlog);
+ \draw[<-](Communication) edge[bend left=20] node[pos=0.5,right]{\parbox{3.6cm}{claimOrder(...)\\transmitOrder(...)\\updateOrderState(...)}} (Backlog);
 
- \draw[->](Env Controller) edge[bend right=20] node[pos=0.5,left]{storeOrder} (Driver);
- \draw[<-](Env Controller) edge[bend left=20] node[pos=0.5,right]{claimOrder} (Driver);
+ \draw[->](Env Controller) edge[bend right=20] node[pos=0.5,left]{\parbox{2.6cm}{setMotorDir(...)\\setLigth(...)\\setDoor(...)}} (Driver);
+ \draw[<-](Env Controller) edge[bend left=20] node[pos=0.5,right]{\parbox{3cm}{newOrder(...)\\newFloor(...)}} (Driver);
 
 \end{tikzpicture}
 \end{document}
