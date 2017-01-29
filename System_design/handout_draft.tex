@@ -150,4 +150,45 @@ Transmits an Order object to all the other nodes in the network. Acknowledges if
 Attempts to claim an order in the \textit{Backlog}. Transmits own cost of taking on this order. Acknowledges if no other elevators have a lower cost on the specified order.
 \subsubsection*{+ updateOrderState(Order, newState) ok}
 Broadcasts an order state update to ensure that the backlogs are identical.
+\section*{Fault handling}
+\subsubsection*{Software crash}
+\begin{itemize}
+\item Backlog is saved to a local file.
+\item All orders are distributed to all other nodes.
+\item Upon restart, open saved backlog, merge with network backlog.
+\item All claimed orders will time out; be claimed by other nodes.
+\end{itemize}
+\subsubsection*{Software hangs}
+\begin{itemize}
+\item Time out on claimed orders.
+\item Supervisor restarts process.
+\end{itemize}
+\subsubsection*{Network cable disconnect, then reconnect}
+\begin{itemize}
+\item Claimed orders time out when TCP marks it as dead.
+\item Syncs backlog from network on reconnect.
+\end{itemize}
+\subsubsection*{Troll user}
+\begin{itemize}
+\item Cost function prioritizes continuing in current direction, and older orders. An elevator will never not serve an order, given enough time.
+\end{itemize}
+\subsubsection*{Elevator never arrives}
+\begin{itemize}
+\item Order times out, different elevator takes over.
+\end{itemize}
+\subsubsection*{Cosmic rays}
+\begin{itemize}
+\item TCP for detecting junked up messages.
+\item New "phantom" orders may be created, no big deal.
+\item No orders can be wiped from the system without being explicitly marked as complete.
+\item Supervisor restarts uncooperative processes.
+\end{itemize}
+\subsubsection*{Power out on all elevators}
+\begin{itemize}
+\item Backlog saved to local file, will carry on where they left of on power up.
+\end{itemize}
+\subsubsection*{Heat Death of the Universe}
+\begin{itemize}
+\item This is acceptable.
+\end{itemize}
 \end{document}
