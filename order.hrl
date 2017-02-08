@@ -1,4 +1,3 @@
--module(order).
--record(order, {type=external,
+-record(order, {type,
 		floor,
-		state}).
+		state=queued}).
