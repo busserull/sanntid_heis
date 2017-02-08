@@ -14,23 +14,23 @@ completeOrder(From, Pid, Order) ->
 runBacklog(Backlog) ->
     receive
         {From, {store, Order}} ->
-            From ! ok,
-            runBacklog([Backlog|[Order]]);
-            %case lists:member(Order, Backlog) of
-            %    true ->
-            %        From ! ok,
-            %        runBacklog(Backlog);
-            %    false ->
-            %        From ! ok,
-            %        runBacklog([Backlog|[Order]])
-            %end;
+            %From ! ok,
+            %runBacklog(Backlog ++ [Order]);
+            case lists:member(Order, Backlog) of
+                true ->
+                    From ! ok,
+                    runBacklog(Backlog);
+                false ->
+                    From ! ok,
+                    runBacklog(Backlog ++ [Order])
+            end;
         {From, {complete, Order}} ->
             From ! ok,
             runBacklog(lists:delete(Order, Backlog));
         {From, {update, Order}} ->
             OldOrder = #order{type = Order#order.type, floor = Order#order.floor},
             From ! ok,
-            runBacklog([lists:delete(OldOrder, Backlog)|[Order]]);
+            runBacklog(lists:delete(OldOrder, Backlog) ++ [Order]);
         debug ->
             debugPrint(Backlog),
             runBacklog(Backlog);
