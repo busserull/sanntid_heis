@@ -1,5 +1,9 @@
 -module (test).
--export ([test/0, testExecutionTime/0]).
+-export ([test/0, testExecutionTime/0, pollFloor/1]).
+
+-define(NUMBER_OF_FLOORS,4).
+-define(POLL_PERIOD, 50).
+-define(BUTTTON_TYPES, [up,down,internal]).
 
 test() -> 
     elevator_driver:setMotorDir(up),
@@ -30,6 +34,17 @@ pollingLoop(State) ->
             end;
         true ->
             pollingLoop(Floor)
+    end.
+
+
+pollFloor(LastFloor) ->
+    CurrentFloor = elevator_driver:getFloor(),
+    if
+        CurrentFloor =:= LastFloor; LastFloor =:= -1 ->
+            timer:sleep(?POLL_PERIOD), pollFloor(LastFloor);
+        is_integer(CurrentFloor), CurrentFloor < ?NUMBER_OF_FLOORS, CurrentFloor >= 0 ->
+            CurrentFloor;
+        true -> {error,{undefined_floor,CurrentFloor}}
     end.
 
 

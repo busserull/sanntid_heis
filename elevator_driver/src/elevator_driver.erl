@@ -5,7 +5,7 @@
          getFloor/0,            %Return 0 index
          getButtonSignal/2,     %up/down/internal , int
          setDoorLight/1,        %on/off
-         setFloorIndicator/1    % int
+         setFloorIndicator/1   % int
         ]).
 
 -on_load(init/0).
@@ -13,6 +13,9 @@
 -define(APPNAME, elevator_driver).
 -define(LIBNAME, elevator_driver).
 
+-define(NUMBER_OF_FLOORS,4).
+-define(POLL_PERIOD, 50).
+-define(BUTTTON_TYPES, [up,down,internal]).
 
 init() ->
     SoName = case code:priv_dir(?APPNAME) of
@@ -28,12 +31,6 @@ init() ->
     end,
     erlang:load_nif(SoName, 0),
     initElevator(simulator).
-
-
-
-
-
-
 
 
 
