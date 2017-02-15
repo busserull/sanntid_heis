@@ -8,7 +8,7 @@
     stdlib
    ]},
   {env,[]},
-  {modules, []},
+  {modules, [environment_controller, beastly_elevator_sup]},
 
   {maintainers, []},
   {licenses, []},
