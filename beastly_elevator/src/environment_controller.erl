@@ -4,15 +4,17 @@
 -define (NAME, environment_controller).
 
 -export([start_link/1]).
--export([button/1]).
+-export([button_pressed/1,reached_new_floor/1]).
 -export([init/1,callback_mode/0,terminate/3,code_change/4]).
 -export([handle_event/4]).
 
 start_link(Code) ->
     gen_statem:start_link({local,?NAME}, ?MODULE, Code, []).
 
-button(Digit) ->
-    gen_statem:cast(?NAME, {button,Digit}).
+button_pressed(Button) ->
+    gen_statem:cast(?NAME, {button_pressed,Button}).
+reached_new_floor(Floor) ->
+    gen_statem:cast(?NAME, {reached_new_floor,Floor}).
 
 init(Code) ->
     do_lock(),

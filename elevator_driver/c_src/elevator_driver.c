@@ -21,7 +21,7 @@ mk_error(ErlNifEnv* env, const char* mesg)
     return enif_make_tuple2(env, mk_atom(env, "error"), mk_atom(env, mesg));
 }
 
-int atomToButtonType(ErlNifEnv* env, const ERL_NIF_TERM argv, elev_button_type_t* type)
+int atom_to_button_type(ErlNifEnv* env, const ERL_NIF_TERM argv, elev_button_type_t* type)
 {
     if (enif_is_identical(argv, mk_atom(env,"up")))
     {
@@ -43,7 +43,7 @@ int atomToButtonType(ErlNifEnv* env, const ERL_NIF_TERM argv, elev_button_type_t
     return 1;
 }
 
-int atomToBool(ErlNifEnv* env, const ERL_NIF_TERM argv, int* val)
+int atom_to_bool(ErlNifEnv* env, const ERL_NIF_TERM argv, int* val)
 {
     if (enif_is_identical(argv, mk_atom(env,"on")))
     {
@@ -63,7 +63,7 @@ int atomToBool(ErlNifEnv* env, const ERL_NIF_TERM argv, int* val)
 
 
 static ERL_NIF_TERM
-initElevator(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+init_elevator(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     if(argc != 1)
     {
@@ -84,7 +84,7 @@ initElevator(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-setMotorDir(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+set_motor_dir(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     if(argc != 1)
     {
@@ -111,7 +111,7 @@ setMotorDir(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-setLight(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+set_light(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     if(argc != 3)
     {
@@ -120,7 +120,7 @@ setLight(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
     int floor, val;
     elev_button_type_t buttonType;
-    if (atomToButtonType(env,argv[0],&buttonType) && enif_get_int(env,argv[1], &floor) && atomToBool(env,argv[2], &val))
+    if (atom_to_button_type(env,argv[0],&buttonType) && enif_get_int(env,argv[1], &floor) && atom_to_bool(env,argv[2], &val))
     {
         elev_set_button_lamp(buttonType,floor,val);
         return mk_atom(env, "ok"); 
@@ -129,7 +129,7 @@ setLight(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-getFloor(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+get_floor(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     if(argc != 0)
     {
@@ -139,7 +139,7 @@ getFloor(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-getButtonSignal(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+get_button_signal(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     if(argc != 2)
     {
@@ -148,7 +148,7 @@ getButtonSignal(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
     int floor;
     elev_button_type_t buttonType;
-    if (atomToButtonType(env,argv[0],&buttonType) && enif_get_int(env,argv[1], &floor))
+    if (atom_to_button_type(env,argv[0],&buttonType) && enif_get_int(env,argv[1], &floor))
     {
         return enif_make_int(env, elev_get_button_signal(buttonType,floor)); 
     }
@@ -156,7 +156,7 @@ getButtonSignal(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-setDoorLight(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+set_door_light(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     if(argc != 1)
     {
@@ -164,7 +164,7 @@ setDoorLight(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     }
 
     int value;
-    if (atomToBool(env,argv[0],&value))
+    if (atom_to_bool(env,argv[0],&value))
     {
         elev_set_door_open_lamp(value);
         return mk_atom(env, "ok");
@@ -173,7 +173,7 @@ setDoorLight(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-setFloorIndicator(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+set_floor_indicator(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     if(argc != 1)
     {
@@ -191,13 +191,13 @@ setFloorIndicator(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
 
 static ErlNifFunc nif_funcs[] = {
-    {"initElevator", 1 , initElevator},
-    {"setMotorDir",1, setMotorDir},
-    {"setLight" , 3, setLight},
-    {"getFloor", 0, getFloor},
-    {"getButtonSignal", 2 , getButtonSignal},
-    {"setDoorLight",1,setDoorLight},
-    {"setFloorIndicator",1,setFloorIndicator}
+    {"init_elevator", 1 , init_elevator},
+    {"set_motor_dir",1, set_motor_dir},
+    {"set_light" , 3, set_light},
+    {"get_floor", 0, get_floor},
+    {"get_button_signal", 2 , get_button_signal},
+    {"set_door_light",1,set_door_light},
+    {"set_floor_indicator",1,set_floor_indicator}
 };
 
 ERL_NIF_INIT(elevator_driver, nif_funcs, NULL, NULL, NULL, NULL);

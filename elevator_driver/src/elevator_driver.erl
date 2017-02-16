@@ -1,11 +1,11 @@
 -module(elevator_driver).
--export([initElevator/1,        %simulator/real
-         setMotorDir/1,         %up/down/stop
-         setLight/3,            %up/down/internal , int , on/off
-         getFloor/0,            %Return 0 index
-         getButtonSignal/2,     %up/down/internal , int
-         setDoorLight/1,        %on/off
-         setFloorIndicator/1   % int
+-export([init_elevator/1,        %simulator/real
+         set_motor_dir/1,         %up/down/stop
+         set_light/3,            %up/down/internal , int , on/off
+         get_floor/0,            %Return 0 index
+         get_button_signal/2,     %up/down/internal , int
+         set_door_light/1,        %on/off
+         set_floor_indicator/1   % int
         ]).
 
 -on_load(init/0).
@@ -29,30 +29,29 @@ init() ->
         Dir ->
             filename:join(Dir, ?LIBNAME)
     end,
-    erlang:load_nif(SoName, 0),
-    initElevator(simulator).
+    erlang:load_nif(SoName, 0).
 
 
 
-initElevator(_ElevType) ->
+init_elevator(_ElevType) ->
     not_loaded(?LINE).
 
-setMotorDir(_Direction) ->
+set_motor_dir(_Direction) ->
     not_loaded(?LINE).
 
-setLight(_ButtonType,_Floor,_Value) ->
+set_light(_ButtonType,_Floor,_Value) ->
     not_loaded(?LINE).
 
-getFloor() ->
+get_floor() ->
     not_loaded(?LINE).
 
-getButtonSignal(_ButtonType,_Floor)->
+get_button_signal(_ButtonType,_Floor)->
     not_loaded(?LINE).
 
-setDoorLight(_Value)->
+set_door_light(_Value)->
     not_loaded(?LINE).
 
-setFloorIndicator(_floor)->
+set_floor_indicator(_floor)->
     not_loaded(?LINE).
 
 not_loaded(Line) ->

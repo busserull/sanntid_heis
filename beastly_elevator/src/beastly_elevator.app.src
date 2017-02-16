@@ -7,9 +7,16 @@
    [kernel,
     stdlib
    ]},
-  {env,[]},
-  {modules, [environment_controller, beastly_elevator_sup]},
-
+  {env,
+  [{runtime_sceem,supervisor},
+   {number_of_floors,4}, 
+   {nuber_of_elevators,1}
+  ]},
+  {modules, 
+  [environment_controller, 
+   beastly_elevator_sup, 
+   environment_controller
+  ]},
   {maintainers, []},
   {licenses, []},
   {links, []}
