@@ -20,7 +20,7 @@ start_link() ->
 init([]) ->
     %create a list of all the different buttons, with their value set to zero.
     Button_list = [{Floor,Button,0} || Floor<-lists:seq(0,top_floor()), Button<-[up,down,internal]],
-    io:format("Initialising: ~p~n",[Button_list]),
+    io:format("Initialising environment poller~n",[]),
     {ok, polling, {Button_list,elevator_driver:get_floor(),0},?POLL_PERIOD}.
 
 polling(timeout, _arg, {Button_list,Floor,Count}) ->
