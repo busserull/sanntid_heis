@@ -1,12 +1,12 @@
 -module(bl3).
 -behavior(gen_server).
 
-% Names an ETS table
+% Names of ETS order table
 -define(ORTAB, ordertable).
 % Time before an order times out in seconds
 -define(ORTOUT, 5).
 
--export([start/0, store_order/2, list_orders/0]).
+-export([start/0, store_order/2, claim_order/3, list_orders/0]).
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
 
@@ -17,6 +17,9 @@ start() ->
 
 store_order(Type, Floor) ->
 	gen_server:call(?MODULE, {store, {Type, Floor}}).
+
+claim_order(Type, Floor, IP) ->
+	gen_server:call(?MODULE, {claim, {Type, Floor, IP}}).
 
 list_orders() ->
 	gen_server:call(?MODULE, {list}).
@@ -33,6 +36,10 @@ handle_call({store, {Type, Floor}}, _From, State) ->
 	Order = {{Type, Floor}, {127,0,0,1}, queued, erlang:monotonic_time()},
 	ets:insert(?ORTAB, Order),
 	{reply, ok, (State + 1)};
+handle_call({claim, {Type, Floor, IP}}, _From, State) ->
+	Now = erlang:monotonic_time(),
+	ets:update_element(?ORTAB,{Type, Floor},[{2,IP},{3,claimed},{4,Now}]),
+	{reply, ok, State};
 handle_call({list}, _From, State) ->
 	list_orders(ets:first(?ORTAB)),
 	{reply, ok, State}.
