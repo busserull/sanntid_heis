@@ -43,7 +43,7 @@ logs
 _build
 .idea
 rebar3.crashdump
-!_checkouts.keep
+!_checkouts/.keep
 
 #Stupid Apple
 *.icloud
