@@ -30,7 +30,7 @@ init([]) ->
 	{ok, State}.
 
 handle_call({store, {Type, Floor}}, _From, State) ->
-	Order = {{Type, Floor}, {127,0,0,1}, queued, erlang:monotonic_time(), 0},
+	Order = {{Type, Floor}, {127,0,0,1}, queued, erlang:monotonic_time()},
 	ets:insert(?ORTAB, Order),
 	{reply, ok, (State + 1)};
 handle_call({list}, _From, State) ->
@@ -43,7 +43,7 @@ handle_cast(_Msg, State) ->
 handle_info({timer}, State) ->
 	erlang:send_after(1000, self(), {timer}),
 	% Check all external orders for timeout
-	check_for_timeout(ets:match(?ORTAB, {{ext,'$1'},'_',queued,'$2','_'})),
+	check_for_timeout(ets:match(?ORTAB, {{ext,'$1'},'_',claimed,'$2'})),
 	%check_for_timeout(ets:first(?ORTAB)),
 	{noreply, State};
 handle_info(_Msg, State) ->
