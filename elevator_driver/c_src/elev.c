@@ -3,9 +3,12 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <string.h>
 
 #include "channels.h"
 #include "io.h"
@@ -17,7 +20,7 @@
 static const int lamp_channel_matrix[N_FLOORS][N_BUTTONS] = {
     {LIGHT_UP1, LIGHT_DOWN1, LIGHT_COMMAND1},
     {LIGHT_UP2, LIGHT_DOWN2, LIGHT_COMMAND2},
-    {LIGHT_UP3, LIGHT_DOWN3, LIGHT_COMMAND3},
+    {LIGHT_UP3, LIGHT_DOWN3 , LIGHT_COMMAND3},
     {LIGHT_UP4, LIGHT_DOWN4, LIGHT_COMMAND4},
 };
 
@@ -37,53 +40,55 @@ static pthread_mutex_t sockmtx;
 
 void elev_init(elev_type e) {
     elevatorType = e;
-    switch(elevatorType) {
-    case ET_Comedi:
-        ;
-        int init_success = io_init();
-        assert(init_success && "Unable to initialize elevator hardware!");
 
-        for(int f = 0; f < N_FLOORS; f++) {
-            for(elev_button_type_t b = 0; b < N_BUTTONS; b++) {
-                elev_set_button_lamp(b, f, 0);
+    switch(elevatorType) {
+        case ET_Comedi:
+        {
+            int init_success = io_init();
+            assert(init_success && "Unable to initialize elevator hardware!");
+
+            for(int f = 0; f < N_FLOORS; f++) {
+                for(elev_button_type_t b = 0; b < N_BUTTONS; b++) {
+                    elev_set_button_lamp(b, f, 0);
+                }
             }
+
+            elev_set_stop_lamp(0);
+            elev_set_door_open_lamp(0);
+            elev_set_floor_indicator(0);
+            break;
         }
 
-        elev_set_stop_lamp(0);
-        elev_set_door_open_lamp(0);
-        elev_set_floor_indicator(0);
-        break;
-
-    case ET_Simulation:
-        ;
-        char ip[16] = {0};
-        char port[8] = {0};
-        con_load("../elevator_driver/simulator/simulator.con",
-            con_val("com_ip",   ip,   "%s")
-            con_val("com_port", port, "%s")
-        )
+        case ET_Simulation:
+        {
+            char ip[16] = {0};
+            char port[8] = {0};
+            con_load("../elevator_driver/simulator/simulator.con",
+                con_val("com_ip",   ip,   "%s")
+                con_val("com_port", port, "%s")
+            )
+            
+            pthread_mutex_init(&sockmtx, NULL);
         
-        pthread_mutex_init(&sockmtx, NULL);
-    
-        sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        assert(sockfd != -1 && "Unable to set up socket");
+            sockfd = socket(AF_INET, SOCK_STREAM, 0);
+            assert(sockfd != -1 && "Unable to set up socket");
 
-        struct addrinfo hints = {
-            .ai_family      = AF_UNSPEC, 
-            .ai_socktype    = SOCK_STREAM, 
-            .ai_protocol    = IPPROTO_TCP,
-        };
-        struct addrinfo* res;
-        getaddrinfo(ip, port, &hints, &res);
+            struct addrinfo hints;
+            hints.ai_family      = AF_UNSPEC;
+            hints.ai_socktype    = SOCK_STREAM;
+            hints.ai_protocol    = IPPROTO_TCP;
+            struct addrinfo* res;
+            getaddrinfo(ip, port, &hints, &res);
 
-        int fail = connect(sockfd, res->ai_addr, res->ai_addrlen);
-        assert(fail == 0 && "Unable to connect to simulator server");
+            int fail = connect(sockfd, res->ai_addr, res->ai_addrlen);
+            assert(fail == 0 && "Unable to connect to simulator server");
 
-        freeaddrinfo(res);
+            freeaddrinfo(res);
 
-        send(sockfd, (char[4]) {0}, 4, 0);
+            send(sockfd, (char[4]) {0}, 4, 0);
 
-        break;
+            break;
+        }
     }
 }
 

@@ -11,6 +11,8 @@
 -export([init/1,callback_mode/0,terminate/3,code_change/4]).
 -export([handle_event/4]).
 
+-record(data, {last_floor,ordered_floor,top_floor}).
+
 callback_mode() ->
     handle_event_function.
 
@@ -39,9 +41,9 @@ set_light(Order,Value)->
 init([]) ->
     elevator_driver:init_elevator(get_env()),
     io:format("Elevator initialised in ~p mode.~n",[get_env()]),
-    Data = #{last_floor => elevator_driver:get_floor(),
-             ordered_floor => empty,
-             top_floor => get_top_floor()},
+    Data = #data{last_floor = elevator_driver:get_floor(),
+             ordered_floor = empty,
+             top_floor = get_top_floor()},
     {ok, {stopped, idle}, Data}.
 
 handle_event(cast, {button_pressed,{Button_type,Floor}}, _State, _Data) ->
@@ -53,10 +55,10 @@ handle_event(cast, {button_pressed,{Button_type,Floor}}, _State, _Data) ->
 handle_event(cast,{set_light,{Button_type,Floor},Value},_State,_Data) ->
     elevator_driver:set_light(Button_type,Floor,Value);
 
-handle_event(cast, {reached_new_floor,New_floor}, test, #{top_floor := Top_floor} = Data) ->
+handle_event(cast, {reached_new_floor,New_floor}, test, Data = #data{top_floor = Top_floor}) ->
     io:format("Reached floor ~p~n",[New_floor]),
     elevator_driver:set_floor_indicator(New_floor),
-    Data#{floor:=New_floor},
+    Data#data{last_floor = New_floor},
     case New_floor of
     	Top_floor -> % Turn around
     	    elevator_driver:set_motor_dir(down);
@@ -66,10 +68,10 @@ handle_event(cast, {reached_new_floor,New_floor}, test, #{top_floor := Top_floor
     end,
     {keep_state, Data};
 
-handle_event(cast, {reached_new_floor, New_floor}, State, #{ordered_floor:= Ordered_floor} = Data) ->
+handle_event(cast, {reached_new_floor, New_floor}, State, Data = #data{ordered_floor = Ordered_floor}) ->
     io:format("Reached floor ~p~n",[New_floor]),
     elevator_driver:set_floor_indicator(New_floor),
-    Data#{floor:= New_floor},
+    Data#data{last_floor = New_floor},
     case State of
         _any_state when Ordered_floor =:= empty ->
             io:format("Reached floor ~p in state ~p without an ordered_floor~n",[New_floor,State]),
@@ -77,7 +79,7 @@ handle_event(cast, {reached_new_floor, New_floor}, State, #{ordered_floor:= Orde
 
         {moving,_any_dir} when New_floor =:= Ordered_floor ->
             order_distributer_finish_order(Ordered_floor),
-            Data#{order:= empty},
+            Data#data{ordered_floor = empty},
             elevator_driver:set_motor_dir(stop),
             {next_state, {stopped, door_open}, Data, 5000}; %Create a event_timeout after 5 sec
 
@@ -99,7 +101,7 @@ handle_event(cast, {reached_new_floor, New_floor}, State, #{ordered_floor:= Orde
             {keep_state,Data}
     end;
             
-handle_event(cast, {goto_floor,Ordered_floor}, State, #{last_floor:= Last_floor} = Data) ->
+handle_event(cast, {goto_floor,Ordered_floor}, State, Data = #data{last_floor = Last_floor}) ->
     case State of
         {stopped, idle} when Ordered_floor < Last_floor->
             elevator_driver:set_motor_dir(down),
