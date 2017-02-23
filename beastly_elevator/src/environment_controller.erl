@@ -36,6 +36,7 @@ set_button_light(Order,Value)->
     gen_statem:cast(?NAME,{set_button_light,Order,Value}).
 
 init([]) ->
+    process_flag(trap_exit, true),
     Data = #data{last_floor = elevator_driver:get_floor(),
              ordered_floor = empty,
              top_floor = get_top_floor()},
@@ -129,8 +130,11 @@ order_distributer_finish_order(Order) ->
     io:format("order_distributer_finish_order(~p).~n",[Order]).
 
 terminate(_Reason, _State, _Data) ->
+    io:format("Terminating ~p!~n",[?MODULE]),
+    io:format("done~n"),
     ok.
 code_change(_Vsn, State, Data, _Extra) ->
+    io:format("~n~nPerforming Code change in ~p!~n~n~n",[?MODULE]),
     {ok, State, Data}.
 
 reached_new_floor_test(New_floor,Last_floor,Dir)->

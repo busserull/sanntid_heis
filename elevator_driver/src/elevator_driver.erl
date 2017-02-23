@@ -38,9 +38,12 @@ start_link(ElevatorType) ->
     init_elevator(ElevatorType).
 
 stop() ->
+    io:format("  Closing port to external program "),
     driver ! {stop, self()},
+    io:format("1"),
     receive
-        port_stopped -> ok
+        port_stopped -> 
+            io:format("Port is closed.~n")
     end.
 
 init_port(ExtPrg) ->
@@ -60,10 +63,11 @@ loop(Port) ->
         end,
         loop(Port); 
     {stop, Caller} ->
+        io:format("2"),
         Port ! {self(), close},
         receive
         {Port, closed} ->
-            io:format("Port is closed.~n"),
+            io:format("3 "),
             Caller ! port_stopped,
             exit(normal)
         end;

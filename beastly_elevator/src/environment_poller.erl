@@ -22,6 +22,7 @@ start_link() ->
     gen_statem:start_link({local,?NAME}, ?MODULE, [], []).
 
 init([]) ->
+    process_flag(trap_exit, true),
     elevator_driver:start_link(get_env()),
     io:format("Elevator driver initialised in ~p mode.~n",[get_env()]),
     %create a list of all the different buttons, with their value set to zero.
@@ -61,8 +62,9 @@ create_event_if_floor_changed(Last_floor, TopFloor) ->
     end.
 
 terminate(_Reason, _State, _Data) ->
+    io:format("Terminating ~p!~n",[?MODULE]),
     elevator_driver:stop(),
-    io:format("~n~nTerminating ~p!~n~n~n",[?MODULE]),
+    io:format("done~n"),
     ok.
 code_change(_Vsn, State, Data, _Extra) ->
     io:format("~n~nPerforming Code change in ~p!~n~n~n",[?MODULE]),
