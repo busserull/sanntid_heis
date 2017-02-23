@@ -29,12 +29,12 @@ start_link() ->
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
     {ok, { {one_for_one, 0, 60}, % not restart more than 3 times within 60 sek
-    [{environment_controller,  % worker ID
-    	{environment_controller, start_link, []}, % mod, startFun, [arg]
-    	permanent, 5000, worker, [environment_controller]}, %restart strat, shutdown timer, type, [module]
-     {environment_poller,  
+    [{environment_poller,  
     	{environment_poller, start_link, []}, 
-    	permanent, 5000, worker, [environment_poller]}
+    	permanent, 5000, worker, [environment_poller]},
+     {environment_controller,  % worker ID
+    	{environment_controller, start_link, []}, % mod, startFun, [arg]
+    	permanent, 5000, worker, [environment_controller]} %restart strat, shutdown timer, type, [module]
     ]} }.
 
 %%====================================================================

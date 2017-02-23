@@ -1,61 +1,103 @@
 -module(elevator_driver).
 -export([init_elevator/1,        %simulator/real
          set_motor_dir/1,         %up/down/stop
-         set_light/3,            %up/down/internal , int , on/off
+         set_button_light/3,            %up/down/internal , int , on/off
          get_floor/0,            %Return 0 index
          get_button_signal/2,     %up/down/internal , int
          set_door_light/1,        %on/off
-         set_floor_indicator/1   % int
+         set_floor_indicator/1,   % int
+         set_stop_light/1,         % int
+         start_link/1,
+         stop/0
         ]).
 
--on_load(init/0).
-
--define(APPNAME, elevator_driver).
--define(LIBNAME, elevator_driver).
 
 -define(NUMBER_OF_FLOORS,4).
 -define(POLL_PERIOD, 50).
 -define(BUTTTON_TYPES, [up,down,internal]).
 
-init() ->
-    SoName = case code:priv_dir(?APPNAME) of
-        {error, bad_name} ->
-            case filelib:is_dir(filename:join(["..", priv])) of
-                true ->
-                    filename:join(["..", priv, ?LIBNAME]);
-                _ ->
-                    filename:join([priv, ?LIBNAME])
-            end;
-        Dir ->
-            filename:join(Dir, ?LIBNAME)
-    end,
-    erlang:load_nif(SoName, 0).
+%% Module API
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+init_elevator(ElevatorType) -> call_port({elev_init, ElevatorType}).
+set_motor_dir(Direction) -> call_port({elev_set_motor_direction, Direction}).
+set_door_light(State) -> call_port({elev_set_door_open_lamp, State}).
+set_stop_light(State) -> call_port({elev_set_stop_lamp, State}).
+set_floor_indicator(Floor) -> call_port({elev_set_floor_indicator, Floor}).
+get_floor() -> call_port({elev_get_floor_sensor_signal}).
+
+get_button_signal(ButtonType, Floor) -> 
+    call_port({elev_get_button_signal, ButtonType, Floor}).
+
+set_button_light(ButtonType, Floor, State) -> 
+    call_port({elev_set_button_lamp, ButtonType, Floor, State}).
+
+start_link(ElevatorType) ->
+    spawn_link(fun() -> init_port("../elevator_driver/priv/elevator_driver") end),
+    timer:sleep(10),
+    init_elevator(ElevatorType).
+
+stop() ->
+    driver ! {stop, self()},
+    receive
+        port_stopped -> ok
+    end.
+
+init_port(ExtPrg) ->
+    register(driver, self()),
+    process_flag(trap_exit, true),
+    Port = open_port({spawn_executable, ExtPrg}, [{packet, 2}]),
+    loop(Port).
 
 
+loop(Port) ->
+    receive
+    {call, Caller, Msg} ->
+        Port ! {self(), {command, encode(Msg)}},
+        receive
+        {Port, {data, Data}} ->
+            Caller ! {self(), Data}
+        end,
+        loop(Port); 
+    {stop, Caller} ->
+        Port ! {self(), close},
+        receive
+        {Port, closed} ->
+            io:format("Port is closed.~n"),
+            Caller ! port_stopped,
+            exit(normal)
+        end;
+    {'EXIT', Port, Reason} ->
+        io:format("External program exit reason: ~p~n",[Reason]),
+        exit(elevator_driver_port_terminated)
+    end.
 
-init_elevator(_ElevType) ->
-    not_loaded(?LINE).
+call_port(Msg) ->
+    driver ! {call, self(), Msg},
+    receive 
+    {_PID, [Result]} ->
+        Result
+    end.
 
-set_motor_dir(_Direction) ->
-    not_loaded(?LINE).
-
-set_light(_ButtonType,_Floor,_Value) ->
-    not_loaded(?LINE).
-
-get_floor() ->
-    not_loaded(?LINE).
-
-get_button_signal(_ButtonType,_Floor)->
-    not_loaded(?LINE).
-
-set_door_light(_Value)->
-    not_loaded(?LINE).
-
-set_floor_indicator(_floor)->
-    not_loaded(?LINE).
-
-not_loaded(Line) ->
-    exit({not_loaded, [{module, ?MODULE}, {line, Line}]}).
-
-
-
+encode({elev_init, simulator}) -> [1, 1];
+encode({elev_init, real}) -> [1, 2];
+encode({elev_set_motor_direction, stop}) -> [2, 1];
+encode({elev_set_motor_direction, up}) -> [2, 2];
+encode({elev_set_motor_direction, down}) -> [2, 0];
+encode({elev_set_door_open_lamp, off}) -> [3, 0];
+encode({elev_set_door_open_lamp, on}) -> [3, 1];
+encode({elev_get_obstruction_signal}) -> [4];
+encode({elev_get_stop_signal}) -> [5];
+encode({elev_set_stop_lamp, off}) -> [6, 0];
+encode({elev_set_stop_lamp, on}) -> [6, 1];
+encode({elev_get_floor_sensor_signal}) -> [7];
+encode({elev_set_floor_indicator, Floor}) -> [8, Floor];
+encode({elev_get_button_signal, up, Floor}) -> [9, 0, Floor];
+encode({elev_get_button_signal, down, Floor}) -> [9, 1, Floor];
+encode({elev_get_button_signal, internal, Floor}) -> [9, 2, Floor];
+encode({elev_set_button_lamp, up, Floor, on}) -> [10, 0, Floor, 1];
+encode({elev_set_button_lamp, up, Floor, off}) -> [10, 0, Floor, 0];
+encode({elev_set_button_lamp, down, Floor, on}) -> [10, 1, Floor, 1];
+encode({elev_set_button_lamp, down, Floor, off}) -> [10, 1, Floor, 0];
+encode({elev_set_button_lamp, internal, Floor, on}) -> [10, 2, Floor, 1];
+encode({elev_set_button_lamp, internal, Floor, off}) -> [10, 2, Floor, 0].

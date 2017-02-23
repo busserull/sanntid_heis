@@ -7,7 +7,7 @@
 -export([event_button_pressed/1,
          event_reached_new_floor/1,
          goto_floor/1,
-         set_light/2]).
+         set_button_light/2]).
 -export([init/1,callback_mode/0,terminate/3,code_change/4]).
 -export([handle_event/4]).
 
@@ -22,9 +22,6 @@ start_link() ->
 get_top_floor()->
     {ok,Number_of_floors} = application:get_env(number_of_floors),
     Number_of_floors-1.
-get_env()->
-    {ok,Environment} = application:get_env(environment),
-    Environment.
 
 event_button_pressed(Button) ->
     gen_statem:cast(?NAME, {button_pressed,Button}).
@@ -35,12 +32,10 @@ event_reached_new_floor(Floor) ->
 goto_floor(Floor)->
     gen_statem:cast(?NAME, {goto_floor,Floor}).
 
-set_light(Order,Value)->
-    gen_statem:cast(?NAME,{set_light,Order,Value}).
+set_button_light(Order,Value)->
+    gen_statem:cast(?NAME,{set_button_light,Order,Value}).
 
 init([]) ->
-    elevator_driver:init_elevator(get_env()),
-    io:format("Elevator initialised in ~p mode.~n",[get_env()]),
     Data = #data{last_floor = elevator_driver:get_floor(),
              ordered_floor = empty,
              top_floor = get_top_floor()},
@@ -49,11 +44,11 @@ init([]) ->
 handle_event(cast, {button_pressed,{Button_type,Floor}}, _State, _Data) ->
     Order={{Button_type,Floor},0,0,0},
     order_distributer_distribute_order(Order),
-    elevator_driver:set_light(Button_type,Floor,on),
+    elevator_driver:set_button_light(Button_type,Floor,on),
     keep_state_and_data;
 
-handle_event(cast,{set_light,{Button_type,Floor},Value},_State,_Data) ->
-    elevator_driver:set_light(Button_type,Floor,Value);
+handle_event(cast,{set_button_light,{Button_type,Floor},Value},_State,_Data) ->
+    elevator_driver:set_button_light(Button_type,Floor,Value);
 
 handle_event(cast, {reached_new_floor,New_floor}, test, Data = #data{top_floor = Top_floor}) ->
     io:format("Reached floor ~p~n",[New_floor]),
