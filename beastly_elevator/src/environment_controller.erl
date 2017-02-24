@@ -49,7 +49,8 @@ handle_event(cast, {button_pressed,{Button_type,Floor}}, _State, _Data) ->
     keep_state_and_data;
 
 handle_event(cast,{set_button_light,{Button_type,Floor},Value},_State,_Data) ->
-    elevator_driver:set_button_light(Button_type,Floor,Value);
+    elevator_driver:set_button_light(Button_type,Floor,Value),
+    keep_state_and_data;
 
 handle_event(cast, {reached_new_floor,New_floor}, test, Data = #data{top_floor = Top_floor}) ->
     io:format("Reached floor ~p~n",[New_floor]),

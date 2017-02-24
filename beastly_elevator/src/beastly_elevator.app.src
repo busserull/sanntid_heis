@@ -9,7 +9,7 @@
     elevator_driver
    ]},
   {env,
-  [{environment,simulator},
+  [{environment,real},
    {number_of_floors,4}, 
    {nuber_of_elevators,1}
   ]},
