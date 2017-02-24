@@ -5,7 +5,8 @@
   {mod, { beastly_elevator_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    elevator_driver
    ]},
   {env,
   [{environment,simulator},

@@ -23,13 +23,13 @@ start_link() ->
 
 init([]) ->
     process_flag(trap_exit, true),
-    elevator_driver:start_link(get_env()),
+    elevator_driver:init_elevator(get_env()),
     io:format("Elevator driver initialised in ~p mode.~n",[get_env()]),
     %create a list of all the different buttons, with their value set to zero.
     TopFloor = get_top_floor(),
     Button_list = [{Floor,Button,0} || Floor<-lists:seq(0,TopFloor), Button<-[up,down,internal]],
     io:format("Initialising environment poller~n",[]),
-    {ok, polling, {Button_list,elevator_driver:get_floor(),0,TopFloor},?POLL_PERIOD}.
+    {ok, polling, {Button_list,-1,0,TopFloor},?POLL_PERIOD}.
 
 polling(timeout, _arg, {Button_list,Floor,Count,TopFloor}) ->
     %io:format("I am now polling for the ~pth time!~n",[Count]),
@@ -45,7 +45,8 @@ create_event_if_button_pressed({Floor,Button,Last_value}) ->
             environment_controller:event_button_pressed({Button,Floor}),
             {Floor,Button,1};
         0 -> %Button released
-            {Floor,Button,0}
+            {Floor,Button,0};
+        Undefined -> io:format("Environment poller undefinded input: ~p~n",[Undefined])
     end.
 
 create_event_if_floor_changed(Last_floor, TopFloor) ->
@@ -63,7 +64,6 @@ create_event_if_floor_changed(Last_floor, TopFloor) ->
 
 terminate(_Reason, _State, _Data) ->
     io:format("Terminating ~p!~n",[?MODULE]),
-    elevator_driver:stop(),
     io:format("done~n"),
     ok.
 code_change(_Vsn, State, Data, _Extra) ->
