@@ -13,4 +13,7 @@ start_link(ExtProg) ->
 init(ExtProg) ->
     {ok, {{one_for_one, 0, 10},
           [{elevator_driver, {elevator_driver, start_link, [ExtProg]},
-            permanent, 10, worker, [elevator_driver]}]}}.
+            permanent, 10, worker, [elevator_driver]},
+            {elevator_poller, {elevator_poller, start_link, []},
+            permanent, 10, worker, [elevator_poller]}
+            ]}}.

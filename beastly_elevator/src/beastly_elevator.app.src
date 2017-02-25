@@ -16,7 +16,7 @@
   {modules, 
   [environment_controller, 
    beastly_elevator_sup, 
-   environment_controller
+   beastly_elevator_app
   ]},
   {maintainers, []},
   {licenses, []},

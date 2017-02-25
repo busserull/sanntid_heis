@@ -1,4 +1,4 @@
--module(environment_poller).
+-module(elevator_poller).
 
 -behaviour (gen_statem).
 -define (NAME, environment_poller).

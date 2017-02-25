@@ -13,7 +13,8 @@
     ]},
   {modules,[elevator_driver_app, 
             elevator_driver_sup, 
-            elevator_driver]},
+            elevator_driver,
+            elevator_poller]},
   {maintainers, ["AndreasVaage"]},
   {licenses, ["LICENSE"]},
   {links, ["http://www2.erlangcentral.org/wiki/?title=Writing_an_Erlang_Port_using_OTP_Principles"]}
