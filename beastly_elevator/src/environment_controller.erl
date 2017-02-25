@@ -49,10 +49,11 @@ handle_event(cast, {button_pressed,{Button_type,Floor}}, _State, _Data) ->
     keep_state_and_data;
 
 handle_event(cast,{set_button_light,{Button_type,Floor},Value},_State,_Data) ->
-    elevator_driver:set_button_light(Button_type,Floor,Value);
+    elevator_driver:set_button_light(Button_type,Floor,Value),
+    keep_state_and_data;
 
 handle_event(cast, {reached_new_floor,New_floor}, test, Data = #data{top_floor = Top_floor}) ->
-    io:format("Reached floor ~p~n",[New_floor]),
+    %io:format("Reached floor ~p~n",[New_floor]),
     elevator_driver:set_floor_indicator(New_floor),
     Data#data{last_floor = New_floor},
     case New_floor of
@@ -65,10 +66,15 @@ handle_event(cast, {reached_new_floor,New_floor}, test, Data = #data{top_floor =
     {keep_state, Data};
 
 handle_event(cast, {reached_new_floor, New_floor}, State, Data = #data{ordered_floor = Ordered_floor}) ->
-    io:format("Reached floor ~p~n",[New_floor]),
+    %io:format("Reached floor ~p~n",[New_floor]),
     elevator_driver:set_floor_indicator(New_floor),
     Data#data{last_floor = New_floor},
     case State of
+        
+        {stopped,_}->
+            io:format("Is someone pushing me?!~n"),
+            {keep_state,Data};
+
         _any_state when Ordered_floor =:= empty ->
             io:format("Reached floor ~p in state ~p without an ordered_floor~n",[New_floor,State]),
             {keep_state,Data};
@@ -88,10 +94,6 @@ handle_event(cast, {reached_new_floor, New_floor}, State, Data = #data{ordered_f
             io:format("Going in wrong direction! ~n"),
             elevator_driver:set_motor_dir(up),
             {next_state,{moving,up},Data};
-
-        {stopped,_}->
-            io:format("Is someone pushing me?!~n"),
-            {keep_state,Data};
 
         _ok -> 
             {keep_state,Data}

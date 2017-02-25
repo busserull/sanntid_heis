@@ -113,7 +113,7 @@ collect_response(Port) ->
     end.
 
 encode({elev_init, simulator}) -> [1, 1];
-encode({elev_init, real}) -> [1, 2];
+encode({elev_init, real}) -> io:format("init_elevator has been called ! ~n"), [1, 2];
 encode({elev_set_motor_direction, stop}) -> [2, 1];
 encode({elev_set_motor_direction, up}) -> [2, 2];
 encode({elev_set_motor_direction, down}) -> [2, 0];

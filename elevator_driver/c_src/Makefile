@@ -21,7 +21,7 @@ ifeq ($(UNAME_SYS), Darwin)
 else ifeq ($(UNAME_SYS), Linux)
 	C_SRC_DIR = $(CURDIR)
 	CC ?= gcc
-	CFLAGS ?= -g -std=c99 -Wall -Wmissing-prototypes
+	CFLAGS ?= -g -std=gnu11 -Wall -Wmissing-prototypes
 	LDFLAGS = -lcomedi -pthread -lm -lerl_interface -lei -lnsl
 endif
 

@@ -40,7 +40,6 @@ static pthread_mutex_t sockmtx;
 
 void elev_init(elev_type e) {
     elevatorType = e;
-
     switch(elevatorType) {
         case ET_Comedi:
         {
