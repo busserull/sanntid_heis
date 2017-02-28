@@ -10,41 +10,37 @@
 #include "con_load.h"
 
 #define MOTOR_SPEED 2800
-
-
-static elev_type elevatorType = ET_Comedi;
 static int sockfd;
 static pthread_mutex_t sockmtx;
 
 void elev_init(elev_type e) {
-    elevatorType = e;
-        ;
-        char ip[16] = {0};
-        char port[8] = {0};
-        con_load("../elevator_driver/simulator/simulator.con",
-            con_val("com_ip",   ip,   "%s")
-            con_val("com_port", port, "%s")
-        )
-        
-        pthread_mutex_init(&sockmtx, NULL);
+    assert(e==ET_Simulation && "There are no elevators here, use simulator!");
+    char ip[16] = {0};
+    char port[8] = {0};
+    con_load("../elevator_driver/simulator/simulator.con",
+        con_val("com_ip",   ip,   "%s")
+        con_val("com_port", port, "%s")
+    )
     
-        sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        assert(sockfd != -1 && "Unable to set up socket");
+    pthread_mutex_init(&sockmtx, NULL);
 
-        struct addrinfo hints = {
-            .ai_family      = AF_UNSPEC, 
-            .ai_socktype    = SOCK_STREAM, 
-            .ai_protocol    = IPPROTO_TCP,
-        };
-        struct addrinfo* res;
-        getaddrinfo(ip, port, &hints, &res);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    assert(sockfd != -1 && "Unable to set up socket");
 
-        int fail = connect(sockfd, res->ai_addr, res->ai_addrlen);
-        assert(fail == 0 && "Unable to connect to simulator server");
+    struct addrinfo hints = {
+        .ai_family      = AF_UNSPEC, 
+        .ai_socktype    = SOCK_STREAM, 
+        .ai_protocol    = IPPROTO_TCP,
+    };
+    struct addrinfo* res;
+    getaddrinfo(ip, port, &hints, &res);
 
-        freeaddrinfo(res);
+    int fail = connect(sockfd, res->ai_addr, res->ai_addrlen);
+    assert(fail == 0 && "Unable to connect to simulator server");
 
-        send(sockfd, (char[4]) {0}, 4, 0);
+    freeaddrinfo(res);
+
+    send(sockfd, (char[4]) {0}, 4, 0);
 }
 
 

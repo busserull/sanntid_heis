@@ -11,7 +11,7 @@
 -export([init/1,callback_mode/0,terminate/3,code_change/4]).
 -export([handle_event/4]).
 
--record(data, {last_floor,ordered_floor,top_floor}).
+-record(data, {dir, last_floor, ordered_floor, top_floor, door_open_period}).
 
 callback_mode() ->
     handle_event_function.
@@ -20,116 +20,177 @@ start_link() ->
     gen_statem:start_link({local,?NAME}, ?MODULE, [], []).
 
 get_top_floor()->
-    {ok,Number_of_floors} = application:get_env(number_of_floors),
-    Number_of_floors-1.
+    {ok,NumberOfFloors} = application:get_env(elevator_driver,number_of_floors),
+    NumberOfFloors-1.
+get_env(Environment)->
+    {ok,Value} = application:get_env(Environment),
+    Value.
 
 event_button_pressed(Button) ->
-    gen_statem:cast(?NAME, {button_pressed,Button}).
+    gen_statem:cast(?NAME, {button_pressed, Button}).
 
 event_reached_new_floor(Floor) ->
-    gen_statem:cast(?NAME, {reached_new_floor,Floor}).
+    gen_statem:cast(?NAME, {reached_new_floor, Floor}).
 
 goto_floor(Floor)->
-    gen_statem:cast(?NAME, {goto_floor,Floor}).
+    gen_statem:cast(?NAME, {goto_floor, Floor}).
 
 set_button_light(Order,Value)->
-    gen_statem:cast(?NAME,{set_button_light,Order,Value}).
+    gen_statem:cast(?NAME, {set_button_light, Order, Value}).
 
 init([]) ->
     process_flag(trap_exit, true),
-    Data = #data{last_floor = elevator_driver:get_floor(),
+    Data = #data{last_floor = unknown,
              ordered_floor = empty,
-             top_floor = get_top_floor()},
+             top_floor = get_top_floor(),
+             door_open_period = get_env(door_open_period)},
+    io:format("Environment controller initialised with top floor = ~p.~n",
+        [Data#data.top_floor]),
     {ok, {stopped, idle}, Data}.
 
 handle_event(cast, {button_pressed,{Button_type,Floor}}, _State, _Data) ->
-    Order={{Button_type,Floor},0,0,0},
-    order_distributer_distribute_order(Order),
-    elevator_driver:set_button_light(Button_type,Floor,on),
+    Order={Button_type, Floor},
+    test_backlog:distribute_order(Order),
+    elevator_driver:set_button_light(Button_type, Floor, on),
     keep_state_and_data;
 
 handle_event(cast,{set_button_light,{Button_type,Floor},Value},_State,_Data) ->
     elevator_driver:set_button_light(Button_type,Floor,Value),
     keep_state_and_data;
 
-handle_event(cast, {reached_new_floor,New_floor}, test, Data = #data{top_floor = Top_floor}) ->
-    %io:format("Reached floor ~p~n",[New_floor]),
-    elevator_driver:set_floor_indicator(New_floor),
-    Data#data{last_floor = New_floor},
-    case New_floor of
-    	Top_floor -> % Turn around
+handle_event(cast, {reached_new_floor, NewFloor}, test, Data) ->
+    %io:format("Reached floor ~p~n",[NewFloor]),
+    elevator_driver:set_floor_indicator(NewFloor),
+    NewData = Data#data{last_floor = NewFloor},
+    TopFloor = NewData#data.top_floor,
+    case NewFloor of
+    	TopFloor -> % Turn around
     	    elevator_driver:set_motor_dir(down);
-    	0 -> % Turn around
+    	0 -> % Turn around 
             elevator_driver:set_motor_dir(up);
     	_any_other_floor -> ok
     end,
-    {keep_state, Data};
+    {keep_state, NewData};
 
-handle_event(cast, {reached_new_floor, New_floor}, State, Data = #data{ordered_floor = Ordered_floor}) ->
-    %io:format("Reached floor ~p~n",[New_floor]),
-    elevator_driver:set_floor_indicator(New_floor),
-    Data#data{last_floor = New_floor},
+handle_event(cast, {reached_new_floor, NewFloor}, State, Data) ->
+    %io:format("Reached floor ~p~n",[NewFloor]),
+    elevator_driver:set_floor_indicator(NewFloor),
+    NewData = Data#data{last_floor = NewFloor},
+
+    OrderedFloor = case test_backlog:get_order(NewFloor, NewData#data.dir) of 
+        empty -> 
+            NewData#data.ordered_floor;
+        timeout -> 
+            NewData#data.ordered_floor;
+        NewOrder ->
+            NewOrder
+    end,
+    io:format("Ordered floor =~p~n",[OrderedFloor]),
     case State of
-        
         {stopped,_}->
             io:format("Is someone pushing me?!~n"),
-            {keep_state,Data};
+            {keep_state,NewData};
 
-        _any_state when Ordered_floor =:= empty ->
-            io:format("Reached floor ~p in state ~p without an ordered_floor~n",[New_floor,State]),
-            {keep_state,Data};
+        _any_state when OrderedFloor =:= empty ->
+            io:format("Reached floor ~p in state ~p without an ordered_floor~n",
+                [NewFloor,State]),
+            {keep_state,NewData};
 
-        {moving,_any_dir} when New_floor =:= Ordered_floor ->
-            order_distributer_finish_order(Ordered_floor),
-            Data#data{ordered_floor = empty},
+        {moving,_any_dir} when NewFloor =:= OrderedFloor ->
+            test_backlog:finnish_order(OrderedFloor),
+            elevator_driver:set_button_light(internal, OrderedFloor, off),
+            elevator_driver:set_button_light(up, OrderedFloor, off),
+            elevator_driver:set_button_light(down, OrderedFloor, off),
+            NewNewData = NewData#data{ordered_floor = empty},
             elevator_driver:set_motor_dir(stop),
-            {next_state, {stopped, door_open}, Data, 5000}; %Create a event_timeout after 5 sec
+            elevator_driver:set_door_light(on),
+            {next_state, {stopped, door_open}, 
+            NewNewData, [{state_timeout, Data#data.door_open_period, nothing}]};
 
-        {moving, up} when Ordered_floor < New_floor ->
+        {moving, up} when OrderedFloor < NewFloor ->
             io:format("Going in wrong direction! ~n"),
             elevator_driver:set_motor_dir(down),
-            {next_state,{moving, down},Data};
+            {next_state,{moving, down}, NewData};
 
-        {moving, down} when Ordered_floor > New_floor ->
+        {moving, down} when OrderedFloor > NewFloor ->
             io:format("Going in wrong direction! ~n"),
             elevator_driver:set_motor_dir(up),
-            {next_state,{moving,up},Data};
+            {next_state, {moving,up}, NewData};
 
-        _ok -> 
-            {keep_state,Data}
+        _ok ->
+            {keep_state, NewData}
     end;
-            
-handle_event(cast, {goto_floor,Ordered_floor}, State, Data = #data{last_floor = Last_floor}) ->
-    case State of
-        {stopped, idle} when Ordered_floor < Last_floor->
-            elevator_driver:set_motor_dir(down),
-            io:format("state: ~p -> ~p~n",[State,test]),
-            {next_state,test, Data};
 
-        {stopped, idle} when Ordered_floor > Last_floor->
+handle_event(state_timeout, _arg, {stopped, door_open}, Data) ->
+    elevator_driver:set_door_light(off),
+    LastFloor = Data#data.last_floor,
+    OrderedFloor = case test_backlog:get_order(LastFloor, stop) of 
+        empty -> 
+            Data#data.ordered_floor;
+        timeout -> 
+            Data#data.ordered_floor;
+        NewOrder ->
+            NewOrder
+    end,
+    case OrderedFloor of
+        empty ->
+            {next_state, {stopped, idle}, Data};
+        Floor when LastFloor < Floor->
             elevator_driver:set_motor_dir(up),
-            io:format("state: ~p -> ~p~n",[State,test]),
-            {next_state,test, Data};
+            {next_state, {moving, up}, Data};
+        Floor when LastFloor > Floor->
+            elevator_driver:set_motor_dir(down),
+            {next_state, {moving, down}, Data};
+        Floor when LastFloor =:= Floor ->
+            test_backlog:finnish_order(OrderedFloor),
+            elevator_driver:set_button_light(internal, OrderedFloor, off),
+            elevator_driver:set_button_light(up, OrderedFloor, off),
+            elevator_driver:set_button_light(down, OrderedFloor, off),
+            NewData = Data#data{ordered_floor = empty},
+            elevator_driver:set_motor_dir(stop),
+            elevator_driver:set_door_light(on),
+            {next_state, {stopped, door_open}, 
+            NewData, [{state_timeout, Data#data.door_open_period, nothing}]}
+        end;
 
-        {stopped, idle} when Ordered_floor =:= Last_floor->
-            keep_state_and_data;
-
+handle_event(cast, {goto_floor, test}, State, Data) ->
+    case State of
         test ->
             elevator_driver:set_motor_dir(stop),
             io:format("state: ~p -> ~p~n",[State,idle]),
             {next_state,{stopped,idle},Data};
+        _any_state -> 
+            elevator_driver:set_motor_dir(up),
+            io:format("state: ~p -> ~p~n",[State,test]),
+            {next_state,test, Data}
+    end;
+            
+handle_event(cast, {goto_floor, OrderedFloor}, State, Data) ->
+    io:format("~nOrdered Floor = ~p~n",[OrderedFloor]),
+    Last_floor = Data#data.last_floor,
+    NewData = Data#data{ordered_floor = OrderedFloor},
+    case State of
+        {stopped, idle} when OrderedFloor < Last_floor->
+            elevator_driver:set_motor_dir(down),
+            io:format("state: ~p -> ~p~n",[State,{moving, down}]),
+            {next_state, {moving, down}, NewData};
+
+        {stopped, idle} when OrderedFloor > Last_floor->
+            elevator_driver:set_motor_dir(up),
+            io:format("state: ~p -> ~p~n",[State,{moving, up}]),
+            {next_state, {moving, up}, NewData};
+
+        {stopped, door_open} when OrderedFloor =:= Last_floor->
+            {next_state,{stopped, door_open}, NewData, 
+            [{state_timeout, NewData#data.door_open_period, nothing}]};
+        
+        {stopped, door_open} ->
+            {keep_state, NewData#data{ordered_floor = OrderedFloor}};
+
         _anything -> 
         io:format("Nothing matched in state ~p~n",[State]),
         keep_state_and_data
     end.
-
-
-
-order_distributer_distribute_order(Order) ->
-    io:format("order_distributer_distribute_order(~p).~n",[Order]).
-
-order_distributer_finish_order(Order) ->
-    io:format("order_distributer_finish_order(~p).~n",[Order]).
 
 terminate(_Reason, _State, _Data) ->
     io:format("Terminating ~p!~n",[?MODULE]),
@@ -138,12 +199,3 @@ terminate(_Reason, _State, _Data) ->
 code_change(_Vsn, State, Data, _Extra) ->
     io:format("~n~nPerforming Code change in ~p!~n~n~n",[?MODULE]),
     {ok, State, Data}.
-
-reached_new_floor_test(New_floor,Last_floor,Dir)->
-    ?assert(Dir =/= stop),
-    case Dir of
-        up ->
-            ?assert(New_floor > Last_floor);
-        down ->
-            ?assert(New_floor < Last_floor)
-    end.

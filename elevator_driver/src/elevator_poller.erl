@@ -1,65 +1,73 @@
 -module(elevator_poller).
 
 -behaviour (gen_statem).
--define (NAME, environment_poller).
--define (POLL_PERIOD,50). 
+-define (NAME, elevator_poller).
 
--export([start_link/0]).
+-export([start_link/1]).
 -export([init/1,callback_mode/0,terminate/3,code_change/4]).
 -export([polling/3]).
 
+-record(data, {poll_period, button_list, last_floor, top_floor}).
+
 callback_mode() -> state_functions.
 
-get_top_floor()->
-    {ok,Number_of_floors} = application:get_env(number_of_floors),
-    Number_of_floors-1.
+get_env(Environment) -> 
+    {ok, Value} = application:get_env(Environment),
+    Value.
 
-get_env()->
-    {ok,Environment} = application:get_env(environment),
-    Environment.
+start_link(Environment) ->
+    gen_statem:start_link({local,?NAME}, ?MODULE, Environment, []).
 
-start_link() ->
-    gen_statem:start_link({local,?NAME}, ?MODULE, [], []).
-
-init([]) ->
+init(Environment) ->
     process_flag(trap_exit, true),
-    elevator_driver:init_elevator(get_env()),
-    io:format("Elevator driver initialised in ~p mode.~n",[get_env()]),
+    elevator_driver:init_elevator(Environment),
+    io:format("~p initialised.~n",[Environment]),
     %create a list of all the different buttons, with their value set to zero.
-    TopFloor = get_top_floor(),
-    Button_list = [{Floor,Button,0} || Floor<-lists:seq(0,TopFloor), Button<-[up,down,internal]],
-    io:format("Initialising environment poller~n",[]),
-    {ok, polling, {Button_list,-1,0,TopFloor},?POLL_PERIOD}.
+    TopFloor = get_env(number_of_floors) - 1,
+    Data = #data{
+    button_list = [{Floor,ButtonType,0} || Floor <- lists:seq(0, TopFloor), 
+                                           ButtonType <- [up, down, internal]],
+    poll_period = get_env(poll_period),
+    last_floor = unknown,
+    top_floor = TopFloor},
 
-polling(timeout, _arg, {Button_list,Floor,Count,TopFloor}) ->
+    io:format("Elevator poller initialised with poll period = ~p ms.~n",
+        [Data#data.poll_period]),
+    {ok, polling, Data, Data#data.poll_period}.
+
+polling(timeout, _arg, Data) ->
     %io:format("I am now polling for the ~pth time!~n",[Count]),
-    New_button_list = lists:map(fun create_event_if_button_pressed/1, Button_list),
-    New_floor = create_event_if_floor_changed(Floor,TopFloor),
-    {next_state, polling, {New_button_list, New_floor,Count+1,TopFloor}, ?POLL_PERIOD}.
+    NewData = Data#data{
+    button_list = 
+    lists:map(fun create_event_if_button_pressed/1, Data#data.button_list),
+    last_floor = 
+    create_event_if_floor_changed(Data#data.last_floor, Data#data.top_floor)},
+    {next_state, polling, NewData, Data#data.poll_period}.
 
-create_event_if_button_pressed({Floor,Button,Last_value}) ->
-    case elevator_driver:get_button_signal(Button,Floor) of
-        Last_value -> %No state change
-            {Floor,Button,Last_value};
+create_event_if_button_pressed({Floor, Button, LastValue}) ->
+    case elevator_driver:get_button_signal(Button, Floor) of
+        LastValue -> %No state change
+            {Floor, Button, LastValue};
         1 -> %Button pressed
-            environment_controller:event_button_pressed({Button,Floor}),
-            {Floor,Button,1};
+            environment_controller:event_button_pressed({Button, Floor}),
+            {Floor, Button, 1};
         0 -> %Button released
-            {Floor,Button,0};
-        Undefined -> io:format("Environment poller undefinded input: ~p~n",[Undefined])
+            {Floor, Button, 0};
+        Undefined -> 
+            io:format("Elevator poller undefined input: ~p~n",[Undefined])
     end.
 
-create_event_if_floor_changed(Last_floor, TopFloor) ->
-    Current_floor = elevator_driver:get_floor(),
+create_event_if_floor_changed(LastFloor, TopFloor) ->
+    CurrentFloor = elevator_driver:get_floor(),
     if
-        Current_floor =:= Last_floor; Current_floor =:= 255 -> %No state change
-            Last_floor;
-        is_integer(Current_floor), Current_floor >= 0, Current_floor =< TopFloor -> %Reached new floor
-            environment_controller:event_reached_new_floor(Current_floor),
-            Current_floor;
+        CurrentFloor =:= LastFloor; CurrentFloor =:= 255 -> %No state change
+            LastFloor;
+        is_integer(CurrentFloor), CurrentFloor >= 0, CurrentFloor =< TopFloor ->
+            environment_controller:event_reached_new_floor(CurrentFloor),
+            CurrentFloor;
         true -> 
-            io:format("Wrong return value from get_floor: ~p~n",[Current_floor]),
-            {error,{undefined_floor,Current_floor}}
+            io:format("Wrong return value from get_floor: ~p~n",[CurrentFloor]),
+            {error,{undefined_floor,CurrentFloor}}
     end.
 
 terminate(_Reason, _State, _Data) ->

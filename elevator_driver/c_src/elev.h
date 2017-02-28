@@ -21,8 +21,8 @@ typedef enum tag_elev_lamp_type {
 } elev_button_type_t;
 
 typedef enum {
-    ET_Simulation =1,
-    ET_Comedi=2 
+    ET_Comedi,
+    ET_Simulation
 } elev_type;
 
 void elev_init(elev_type e);

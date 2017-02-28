@@ -1,7 +1,7 @@
 {application, beastly_elevator,
  [{description, "An OTP application"},
   {vsn, "0.1.0"},
-  {registered, []},
+  {registered, [beastly_elevator]},
   {mod, { beastly_elevator_app, []}},
   {applications,
    [kernel,
@@ -9,14 +9,14 @@
     elevator_driver
    ]},
   {env,
-  [{environment,real},
-   {number_of_floors,4}, 
-   {nuber_of_elevators,1}
+  [{environment,simulator},
+  {door_open_period, 5000}
   ]},
   {modules, 
   [environment_controller, 
    beastly_elevator_sup, 
-   beastly_elevator_app
+   beastly_elevator_app,
+   test_backlog
   ]},
   {maintainers, []},
   {licenses, []},

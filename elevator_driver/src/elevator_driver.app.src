@@ -9,7 +9,10 @@
    {mod,{elevator_driver_app, []}},
   {env,[
     {extprog, "elevator_driver"},
-    {timeout, 30000}
+    {timeout, 30000},
+    {number_of_floors,4}, 
+    {nuber_of_elevators,1},
+    {poll_period, 50}
     ]},
   {modules,[elevator_driver_app, 
             elevator_driver_sup, 

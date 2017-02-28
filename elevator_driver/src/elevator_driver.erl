@@ -14,7 +14,7 @@
 -export([start_link/1]).
 
 %% API functions
--export([init_elevator/1,        %simulator/real
+-export([init_elevator/1,        %simulator/elevator
          set_motor_dir/1,        %up/down/stop
          set_button_light/3,     %up/down/internal , int , on/off
          get_floor/0,            %Return 0 index
@@ -44,7 +44,7 @@ start_link(ExtProg) ->
 init_elevator(ElevatorType) -> 
     gen_server:call(?MODULE, {elev_init, ElevatorType}, get_timeout()).
 set_motor_dir(Direction) -> 
-    gen_server:call(?MODULE, {elev_set_motor_direction, Direction}, get_timeout()).
+    gen_server:call(?MODULE, {elev_set_motor_dir, Direction}, get_timeout()).
 set_door_light(State) -> 
     gen_server:call(?MODULE, {elev_set_door_open_lamp, State}, get_timeout()).
 set_stop_light(State) -> 
@@ -54,9 +54,9 @@ set_floor_indicator(Floor) ->
 get_floor() -> 
     gen_server:call(?MODULE, {elev_get_floor_sensor_signal}, get_timeout()).
 get_button_signal(ButtonType, Floor) -> 
-    gen_server:call(?MODULE, {elev_get_button_signal, ButtonType, Floor}, get_timeout()).
+    gen_server:call(?MODULE, {elev_get_order, ButtonType,Floor}, get_timeout()).
 set_button_light(ButtonType, Floor, State) -> 
-    gen_server:call(?MODULE, {elev_set_button_lamp, ButtonType, Floor, State}, get_timeout()).
+    gen_server:call(?MODULE, {elev_l, ButtonType, Floor, State}, get_timeout()).
 %%%----------------------------------------------------------------------
 %%% Callback functions from gen_server
 %%%----------------------------------------------------------------------
@@ -64,6 +64,7 @@ set_button_light(ButtonType, Floor, State) ->
 init(ExtPrg) ->
     process_flag(trap_exit, true),
     Port = open_port({spawn_executable, ExtPrg}, [{packet, 2}]),
+    io:format("Elevator driver initialised.~n"),
     {ok, #state{port = Port}}.
 
 handle_call(Msg, _From, #state{port = Port} = State) ->
@@ -112,11 +113,11 @@ collect_response(Port) ->
             timeout
     end.
 
+encode({elev_init, elevator}) -> [1, 0];
 encode({elev_init, simulator}) -> [1, 1];
-encode({elev_init, real}) -> io:format("init_elevator has been called ! ~n"), [1, 2];
-encode({elev_set_motor_direction, stop}) -> [2, 1];
-encode({elev_set_motor_direction, up}) -> [2, 2];
-encode({elev_set_motor_direction, down}) -> [2, 0];
+encode({elev_set_motor_dir, stop}) -> [2, 1];
+encode({elev_set_motor_dir, up}) -> [2, 2];
+encode({elev_set_motor_dir, down}) -> [2, 0];
 encode({elev_set_door_open_lamp, off}) -> [3, 0];
 encode({elev_set_door_open_lamp, on}) -> [3, 1];
 encode({elev_get_obstruction_signal}) -> [4];
@@ -125,12 +126,12 @@ encode({elev_set_stop_lamp, off}) -> [6, 0];
 encode({elev_set_stop_lamp, on}) -> [6, 1];
 encode({elev_get_floor_sensor_signal}) -> [7];
 encode({elev_set_floor_indicator, Floor}) -> [8, Floor];
-encode({elev_get_button_signal, up, Floor}) -> [9, 0, Floor];
-encode({elev_get_button_signal, down, Floor}) -> [9, 1, Floor];
-encode({elev_get_button_signal, internal, Floor}) -> [9, 2, Floor];
-encode({elev_set_button_lamp, up, Floor, on}) -> [10, 0, Floor, 1];
-encode({elev_set_button_lamp, up, Floor, off}) -> [10, 0, Floor, 0];
-encode({elev_set_button_lamp, down, Floor, on}) -> [10, 1, Floor, 1];
-encode({elev_set_button_lamp, down, Floor, off}) -> [10, 1, Floor, 0];
-encode({elev_set_button_lamp, internal, Floor, on}) -> [10, 2, Floor, 1];
-encode({elev_set_button_lamp, internal, Floor, off}) -> [10, 2, Floor, 0].
+encode({elev_get_order, up, Floor}) -> [9, 0, Floor];
+encode({elev_get_order, down, Floor}) -> [9, 1, Floor];
+encode({elev_get_order, internal, Floor}) -> [9, 2, Floor];
+encode({elev_l, up, Floor, on}) -> [10, 0, Floor, 1];
+encode({elev_l, up, Floor, off}) -> [10, 0, Floor, 0];
+encode({elev_l, down, Floor, on}) -> [10, 1, Floor, 1];
+encode({elev_l, down, Floor, off}) -> [10, 1, Floor, 0];
+encode({elev_l, internal, Floor, on}) -> [10, 2, Floor, 1];
+encode({elev_l, internal, Floor, off}) -> [10, 2, Floor, 0].
