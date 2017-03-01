@@ -25,14 +25,14 @@ else ifeq ($(UNAME_SYS), Linux)
 	LDFLAGS = -lcomedi -pthread -lm -lerl_interface -lei -lnsl
 endif
 
-SOURCES := $(shell find $(C_SRC_DIR) -type f \( -name "*.c" -o -name "*.C" -o -name "*.cc" -o -name "*.cpp" \))
-OBJECTS = $(addsuffix .o, $(basename $(SOURCES)))
+SOURCES := $(shell find $(C_SRC_DIR) -name '*.c')
+OBJECTS = $(SOURCES:%.c=%.o)
 
 # program executable file name.
 TARGET = $(C_SRC_OUTPUT)
 
 # top-level rule, to compile everything.
-all: $(TARGET)
+all: $(SOURCES)
 
 # rule to link the program
 $(TARGET): $(OBJECTS)
@@ -40,7 +40,7 @@ $(TARGET): $(OBJECTS)
 
 # Compile: create object files from C source files.
 %.o : %.c
-	$(CC) $(CFLAGS) -c $<  
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # rule for cleaning re-compilable files.
 clean:

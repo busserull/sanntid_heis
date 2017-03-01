@@ -66,16 +66,16 @@ void elev_init(elev_type e) {
                 con_val("com_ip",   ip,   "%s")
                 con_val("com_port", port, "%s")
             )
-            
             pthread_mutex_init(&sockmtx, NULL);
         
             sockfd = socket(AF_INET, SOCK_STREAM, 0);
             assert(sockfd != -1 && "Unable to set up socket");
 
-            struct addrinfo hints;
-            hints.ai_family      = AF_UNSPEC;
-            hints.ai_socktype    = SOCK_STREAM;
-            hints.ai_protocol    = IPPROTO_TCP;
+            struct addrinfo hints = {
+                .ai_family      = AF_UNSPEC, 
+                .ai_socktype    = SOCK_STREAM, 
+                .ai_protocol    = IPPROTO_TCP,
+            };
             struct addrinfo* res;
             getaddrinfo(ip, port, &hints, &res);
 

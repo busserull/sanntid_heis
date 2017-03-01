@@ -9,7 +9,7 @@
     elevator_driver
    ]},
   {env,
-  [{environment,simulator},
+  [{environment, simulator},
   {door_open_period, 5000}
   ]},
   {modules, 

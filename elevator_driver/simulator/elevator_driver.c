@@ -6,15 +6,12 @@
 
 int main() 
 {
-  assert(0 && "This is a test");
   while (1) {
       byte command_buffer[MAX_COMMAND_SIZE];
       byte result[1];
-      printf(".");
       if(!(read_cmd(command_buffer) > 0))
       {
       elev_set_motor_direction(0);
-      printf("Testing\n");
       return 0;
       }
       
