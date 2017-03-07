@@ -5,12 +5,12 @@
   {mod, { beastly_elevator_app, []}},
   {applications,
    [kernel,
-    stdlib,
-    elevator_driver
+    stdlib
    ]},
   {env,
-  [{environment, simulator},
-  {door_open_period, 5000}
+  [{door_open_period, 5000},
+   {number_of_floors, 4},
+   {number_of_elevators, 1}
   ]},
   {modules, 
   [environment_controller, 

@@ -1,13 +1,19 @@
 -module(environment_controller).
 -include_lib("eunit/include/eunit.hrl").
 -behaviour (gen_statem).
+-behaviour(elevator_driver).
 -define (NAME, environment_controller).
 
--export([start_link/0]).
--export([event_button_pressed/1,
-         event_reached_new_floor/1,
-         goto_floor/1,
-         set_button_light/2]).
+%supervisor 
+-export([start_link/0, start_elevator/0]).
+
+%Environment poller callbacks
+-export([event_button_pressed/1, event_reached_new_floor/1]).
+
+%Backlog 
+-export([goto_floor/1, set_button_light/2]).
+
+%Gen_statem callbacks
 -export([init/1,callback_mode/0,terminate/3,code_change/4]).
 -export([handle_event/4]).
 
@@ -19,9 +25,13 @@ callback_mode() ->
 start_link() ->
     gen_statem:start_link({local,?NAME}, ?MODULE, [], []).
 
+start_elevator() ->
+        elevator_driver:start_elevator(?MODULE, simulator).
+
 get_top_floor()->
-    {ok,NumberOfFloors} = application:get_env(elevator_driver,number_of_floors),
+    {ok,NumberOfFloors} = application:get_env(number_of_floors),
     NumberOfFloors-1.
+
 get_env(Environment)->
     {ok,Value} = application:get_env(Environment),
     Value.
@@ -44,8 +54,7 @@ init([]) ->
              ordered_floor = empty,
              top_floor = get_top_floor(),
              door_open_period = get_env(door_open_period)},
-    io:format("Environment controller initialised with top floor = ~p.~n",
-        [Data#data.top_floor]),
+    io:format("Environment controller initialised ~n"),
     {ok, {stopped, idle}, Data}.
 
 handle_event(cast, {button_pressed,{Button_type,Floor}}, _State, _Data) ->
@@ -180,7 +189,7 @@ handle_event(cast, {goto_floor, OrderedFloor}, State, Data) ->
             io:format("state: ~p -> ~p~n",[State,{moving, up}]),
             {next_state, {moving, up}, NewData};
 
-        {stopped, door_open} when OrderedFloor =:= Last_floor->
+        {stopped, _any_state} when OrderedFloor =:= Last_floor->
             {next_state,{stopped, door_open}, NewData, 
             [{state_timeout, NewData#data.door_open_period, nothing}]};
         
@@ -188,7 +197,7 @@ handle_event(cast, {goto_floor, OrderedFloor}, State, Data) ->
             {keep_state, NewData#data{ordered_floor = OrderedFloor}};
 
         _anything -> 
-        io:format("Nothing matched in state ~p~n",[State]),
+        io:format("Nothing matched in state ~p, ordered floor = ~p~n",[State, OrderedFloor]),
         keep_state_and_data
     end.
 
