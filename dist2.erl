@@ -7,7 +7,7 @@
 -define(BROADCAST_TIME, 1000).
 
 %% public API
--export([start/0, send/0]).
+-export([start/0]).
 %% gen_server callback functions
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
@@ -15,10 +15,6 @@
 %% API
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
-send() ->
-	gen_server:call(?MODULE, {broadcast}).
-	
 
 %% callbacks
 init([]) ->
@@ -28,9 +24,8 @@ init([]) ->
 	{ok, Socket} = gen_udp:open(?PEER_DISC_PORT, [{broadcast, true}, binary]),
 	{ok, Socket}.
 
-handle_call({broadcast}, _From, State) ->
-	Msg = list_to_binary(io_lib:format("~p", [get_hostname()])),
-	gen_udp:send(State, {255,255,255,255}, ?PEER_DISC_PORT, Msg),
+handle_call(Msg, _From, State) ->
+	io:format("~p", [Msg]),
 	{reply, ok, State}.
 
 handle_cast(_Msg, State) ->
