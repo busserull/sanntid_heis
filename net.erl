@@ -1,4 +1,4 @@
--module(dist2).
+-module(net).
 -behavior(gen_server).
 
 -define(ELEVNAME, "beastly_beast@").
