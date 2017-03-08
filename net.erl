@@ -36,8 +36,8 @@ handle_info({broadcast}, State) ->
 	Msg = list_to_binary(io_lib:format("~p", [get_hostname()])),
 	gen_udp:send(State, {255,255,255,255}, ?PEER_DISC_PORT, Msg),
 	{noreply, State};
-handle_info({udp, _ErPort, _IP, _Port, Bin_msg}, State) ->
-	[_ | Node] = lists:droplast(binary_to_list(Bin_msg)),
+handle_info({udp, _ErPort, _IP, _Port, BinMsg}, State) ->
+	[_ | Node] = lists:droplast(binary_to_list(BinMsg)),
 	net_kernel:connect(list_to_atom(Node)),
 	{noreply, State};
 handle_info(_Msg, State) ->
