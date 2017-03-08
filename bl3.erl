@@ -6,7 +6,7 @@
 % Time before an order times out in seconds
 -define(ORTOUT, 5).
 
--export([start/0, store_order/2, claim_order/3, list_orders/0]).
+-export([start/0, store_order/2, claim_order/3, clear_order/2, list_orders/0]).
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
 
@@ -40,6 +40,9 @@ store_order(Type, Floor) ->
 claim_order(Type, Floor, IP) ->
 	gen_server:call(?MODULE, {claim, {Type, Floor, IP}}).
 
+clear_order(Type, Floor) ->
+	gen_server:call(?MODULE, {clear, {Type, Floor}}).
+
 list_orders() ->
 	gen_server:call(?MODULE, {list}).
 
@@ -59,7 +62,18 @@ handle_call({claim, {Type, Floor, IP}}, _From, State) ->
 	Now = erlang:monotonic_time(),
 	ets:update_element(?ORTAB,{Type, Floor},[{2,IP},{3,claimed},{4,Now}]),
 	{reply, ok, State};
+handle_call({clear, {Type, Floor}}, _From, State) ->
+	Types = case Type of
+		internal ->
+			[internal, up, down];
+		_UpDown ->
+			[up, down]
+	end,
+	NumberOfDeletedOrders = deleteOrders(Types, Floor),
+	{reply, ok, State - NumberOfDeletedOrders};
+
 handle_call({list}, _From, State) ->
+	io:format("Number of elements = ~p~n",[State]),
 	list_orders(ets:first(?ORTAB)),
 	{reply, ok, State}.
 
@@ -82,6 +96,10 @@ code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 %%% Help functions
+%% Deletes all Types at Floor and return number of deleted orders 
+deleteOrders(Types, Floor) ->
+	length([ets:delete(?ORTAB, { T, Floor}) || T <- Types,
+		ets:member(?ORTAB, {T, Floor})]).
 
 list_orders('$end_of_table') ->
 	ok;
