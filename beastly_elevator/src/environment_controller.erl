@@ -26,7 +26,7 @@ start_link() ->
     gen_statem:start_link({local,?NAME}, ?MODULE, [], []).
 
 start_elevator() ->
-        elevator_driver:start_elevator(?MODULE, simulator).
+        elevator_driver:start_elevator(?MODULE, elevator).
 
 get_top_floor()->
     {ok,NumberOfFloors} = application:get_env(number_of_floors),
@@ -106,13 +106,8 @@ handle_event(cast, {reached_new_floor, NewFloor}, State, Data) ->
             {keep_state,NewData};
 
         {moving,_any_dir} when NewFloor =:= OrderedFloor ->
-            test_backlog:finnish_order(OrderedFloor),
-            elevator_driver:set_button_light(internal, OrderedFloor, off),
-            elevator_driver:set_button_light(up, OrderedFloor, off),
-            elevator_driver:set_button_light(down, OrderedFloor, off),
+            prepare_door_open(OrderedFloor),
             NewNewData = NewData#data{ordered_floor = empty},
-            elevator_driver:set_motor_dir(stop),
-            elevator_driver:set_door_light(on),
             {next_state, {stopped, door_open}, 
             NewNewData, [{state_timeout, Data#data.door_open_period, nothing}]};
 
@@ -151,16 +146,11 @@ handle_event(state_timeout, _arg, {stopped, door_open}, Data) ->
             elevator_driver:set_motor_dir(down),
             {next_state, {moving, down}, Data};
         Floor when LastFloor =:= Floor ->
-            test_backlog:finnish_order(OrderedFloor),
-            elevator_driver:set_button_light(internal, OrderedFloor, off),
-            elevator_driver:set_button_light(up, OrderedFloor, off),
-            elevator_driver:set_button_light(down, OrderedFloor, off),
+            prepare_door_open(OrderedFloor),
             NewData = Data#data{ordered_floor = empty},
-            elevator_driver:set_motor_dir(stop),
-            elevator_driver:set_door_light(on),
-            {next_state, {stopped, door_open}, 
+            {next_state, {stopped, door_open},
             NewData, [{state_timeout, Data#data.door_open_period, nothing}]}
-        end;
+    end;
 
 handle_event(cast, {goto_floor, test}, State, Data) ->
     case State of
@@ -190,7 +180,9 @@ handle_event(cast, {goto_floor, OrderedFloor}, State, Data) ->
             {next_state, {moving, up}, NewData};
 
         {stopped, _any_state} when OrderedFloor =:= Last_floor->
-            {next_state,{stopped, door_open}, NewData, 
+            prepare_door_open(OrderedFloor),
+            NewNewData = NewData#data{ordered_floor = empty},
+            {next_state,{stopped, door_open}, NewNewData, 
             [{state_timeout, NewData#data.door_open_period, nothing}]};
         
         {stopped, door_open} ->
@@ -208,3 +200,12 @@ terminate(_Reason, _State, _Data) ->
 code_change(_Vsn, State, Data, _Extra) ->
     io:format("~n~nPerforming Code change in ~p!~n~n~n",[?MODULE]),
     {ok, State, Data}.
+
+prepare_door_open(OrderedFloor) ->
+    test_backlog:finnish_order(OrderedFloor),
+    elevator_driver:set_button_light(internal, OrderedFloor, off),
+    elevator_driver:set_button_light(up, OrderedFloor, off),
+    elevator_driver:set_button_light(down, OrderedFloor, off),
+    elevator_driver:set_motor_dir(stop),
+    elevator_driver:set_door_light(on).
+
