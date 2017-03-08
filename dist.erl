@@ -4,7 +4,7 @@
 %% public API
 -export([start/0, send/0]).
 %% gen_statem callback functions
--export([terminate/3, code_change/4, init/1, callback_mode/0]).
+-export([terminate/3, code_change/4, init/1, callback_mode/0, test/0]).
 %% states
 -export([broadcast/3]).
 
@@ -20,6 +20,13 @@ start() ->
 send() ->
 	gen_statem:call(?MODULE, broadcast).
 
+test() ->
+	Msg = list_to_binary(io_lib:format("~p", [get_hostname()])),
+	{ok, Socket} = gen_udp:open(?PEER_DISC_PORT, [{broadcast, true}, binary]),
+	gen_udp:send(Socket, {10,22,79,11}, ?PEER_DISC_PORT, Msg),
+	gen_udp:close(Socket),
+	{ok}.
+
 %% gen_statem callback functions
 terminate(_Reason, _State, _Data) ->
 	ok.
@@ -30,8 +37,9 @@ code_change(_OldVsn, State, Data, _Extra) ->
 init([]) ->
 	net_kernel:start([get_hostname(), longnames]),
 	erlang:set_cookie(node(), ?COOKIE),
-	{ok, Socket} = gen_udp:open(?PEER_DISC_PORT, [{broadcast, true}, binary]),
-	{ok, broadcast, Socket}.
+	%{ok, Socket} = gen_udp:open(?PEER_DISC_PORT, [{broadcast, true}, binary]),
+	%{ok, broadcast, Socket}.
+	{ok, broadcast, 1}.
 
 callback_mode() ->
 	state_functions.
@@ -39,8 +47,12 @@ callback_mode() ->
 %% states
 broadcast({call, From}, broadcast, Socket) ->
 	Msg = list_to_binary(io_lib:format("~p", [get_hostname()])),
+
+	{ok, Socket} = gen_udp:open(?PEER_DISC_PORT, [{broadcast, true}, binary]),
+
 	gen_udp:send(Socket, {255,255,255,255}, ?PEER_DISC_PORT, Msg),
-	{next_state, broadcast, Socket, [{reply, From, sent}]}.
+	%{next_state, broadcast, Socket, [{reply, From, sent}]}.
+	{next_state, broadcast, 1, [{reply, From, sent}]}.
 
 %% help functions
 get_hostname() ->
