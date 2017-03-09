@@ -10,6 +10,25 @@
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%% Test functions %%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%These kind of functions should maybe be placed in a separate module
+-export ([distribute_order/2, list_all_orders/0]).
+
+distribute_order(Type, Floor) ->
+	rpc:multicall(bl3,store_order,[Type, Floor]).
+
+list_all_orders() ->
+	rpc:multicall(bl3, list_orders, []).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%% Test functions %%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
 %%% Backlog interface
 
 start() ->
