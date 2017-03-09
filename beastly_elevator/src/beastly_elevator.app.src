@@ -8,7 +8,7 @@
     stdlib
    ]},
   {env,
-  [{door_open_period, 5000},
+  [{door_open_period, 2000},
    {number_of_floors, 4},
    {number_of_elevators, 1}
   ]},

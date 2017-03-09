@@ -5,7 +5,7 @@
 -export([start_link/0]).
 
 %% API functions
--export([distribute_order/1, finnish_order/1, get_order/2]).   
+-export([distribute_order/1, finnish_order/1, get_order/1]).   
 
 %% gen_server callbacks
 -export([init/1,
@@ -31,8 +31,8 @@ distribute_order(Order) ->
 finnish_order(Order) ->
 	gen_server:call(?MODULE, {finnish_order, Order}).
 
-get_order(Floor, Dir) ->
-	gen_server:call(?MODULE, {get_order, {Floor, Dir}}).	
+get_order(ElevatorState) ->
+	gen_server:call(?MODULE, {get_order, ElevatorState}).	
 
 handle_call({distribute_order, {_ButtonType, Floor}}, _From, State) ->
 	case queue:is_empty(State#state.orders) of
@@ -46,7 +46,8 @@ handle_call({distribute_order, {_ButtonType, Floor}}, _From, State) ->
 handle_call({finnish_order, _Order}, _From, State) ->
 	{reply, ok, State#state{current_order = empty}};
 
-handle_call({get_order, _ElevatorState}, _From, State) ->
+handle_call({get_order, ElevatorState}, _From, State) ->
+	io:format("Elevator_state =~p~n",[ElevatorState]),
 	case State#state.current_order of
 		empty ->
 			case queue:out(State#state.orders) of
