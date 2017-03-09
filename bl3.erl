@@ -17,12 +17,65 @@
 
 %These kind of functions should maybe be placed in a separate module
 -export ([distribute_order/2, list_all_orders/0]).
-
+-define(NUMBER_OF_FLOORS, 4).
 distribute_order(Type, Floor) ->
 	rpc:multicall(bl3,store_order,[Type, Floor]).
 
 list_all_orders() ->
 	rpc:multicall(bl3, list_orders, []).
+
+get_order({Pos, State, LastFloor}) ->
+	ok.
+
+%Borrowed from Sivert Bakken
+cost_function({ElevState, ElevFloor, ElevLastDir}, OrderFloor, OrderDir) ->
+  case ElevState of
+  	stuck -> 3*?NUMBER_OF_FLOORS;
+  	_ ->
+      Difference = OrderFloor - ElevFloor, %if negative, order is below
+      erlang:abs(Difference) + 
+      movement_penalty(ElevState, ElevLastDir, Difference) + 
+      turn_penalty(ElevState, ElevFloor, ElevLastDir, OrderFloor) + 
+      order_dir_penalty(ElevLastDir, OrderFloor, OrderDir)
+  end.
+  
+% Cost modifier if traveling to or from order floor
+movement_penalty(stopped, _Dir, _Dif) -> 0;
+movement_penalty(_State, _Dir, 0) -> 1.5;
+
+movement_penalty(_State, Dir, FloorDif) when 
+(Dir == up andalso FloorDif > 0) orelse 
+(Dir == down andalso FloorDif < 0) -> -0.5;
+
+movement_penalty(_State, Dir, FloorDif) when 
+(Dir == up andalso FloorDif < 0) orelse 
+(Dir == down andalso FloorDif > 0) -> 1.5.
+
+% Penalty for changing direction of travel
+turn_penalty(stopped, ElevFloor, _ElevDir, _OrderFloor) when 
+ElevFloor == 0 orelse ElevFloor == (?NUMBER_OF_FLOORS-1) -> 0;
+
+turn_penalty(moving, ElevFloor, ElevDir, _OrderFloor) when 
+(ElevFloor == 1 andalso ElevDir == down); 
+(ElevFloor == (?NUMBER_OF_FLOORS-2) andalso ElevDir == up) -> 0;
+
+turn_penalty(_ElevState, ElevFloor, ElevDir, OrderFloor) when 
+(ElevDir == up andalso OrderFloor < ElevFloor) orelse 
+(ElevDir == down andalso OrderFloor > ElevFloor) -> 0.75;
+
+turn_penalty(_ElevState, _ElevFloor, _ElevDir, _OrderFloor) -> 0.
+
+% Elevators are not allowed to handle orders in wrong 
+% direction if there are orders beyond, cost must agree
+order_dir_penalty(_ElevDir, OrderFloor, _OrderDir) when 
+OrderFloor == 0 orelse OrderFloor == ?NUMBER_OF_FLOORS-1 -> 0;
+
+order_dir_penalty(ElevDir, _OrderFloor, OrderDir) when 
+OrderDir /= int andalso ElevDir /= OrderDir -> ?NUMBER_OF_FLOORS-2+0.25;
+
+order_dir_penalty(_ElevDir, _OrderFloor, _OrderDir) -> 0.
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%% Test functions %%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
