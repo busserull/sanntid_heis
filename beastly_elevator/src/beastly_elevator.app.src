@@ -10,7 +10,8 @@
   {env,
   [{door_open_period, 2000},
    {number_of_floors, 4},
-   {number_of_elevators, 1}
+   {number_of_elevators, 1},
+   {traveling_timeout, 5000}
   ]},
   {modules, 
   [environment_controller, 

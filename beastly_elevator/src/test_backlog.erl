@@ -34,13 +34,13 @@ finnish_order(Order) ->
 get_order(ElevatorState) ->
 	gen_server:call(?MODULE, {get_order, ElevatorState}).	
 
-handle_call({distribute_order, {_ButtonType, Floor}}, _From, State) ->
+handle_call({distribute_order, Order}, _From, State) ->
 	case queue:is_empty(State#state.orders) of
 		true when State#state.current_order =:= empty ->
-			environment_controller:goto_floor(Floor),
-			{reply, ok, State#state{current_order = Floor}};
+			environment_controller:goto_order(Order),
+			{reply, ok, State#state{current_order = Order}};
 		_anything ->
-			{reply,ok,State#state{orders = queue:in(Floor, State#state.orders)}}
+			{reply,ok,State#state{orders = queue:in(Order, State#state.orders)}}
 	end;
 
 handle_call({finnish_order, _Order}, _From, State) ->

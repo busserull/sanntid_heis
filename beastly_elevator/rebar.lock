@@ -1,1 +1,4 @@
-[].
+[{<<"elevator_driver">>,
+  {git,"https://github.com/AndreasVaage/elevator_driver",
+       {ref,"157813f432bc02e0bc41b36bc447380485aaba79"}},
+  0}].
