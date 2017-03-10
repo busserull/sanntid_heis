@@ -1,93 +1,17 @@
 -module(backlog).
 -behavior(gen_server).
 
--compile(export_all).
-
 % Names of ETS order table
 -define(ORTAB, ordertable).
-% Time before an order times out in seconds
--define(ORTOUT, 5).
+% Time before an order times out in ms
+-define(ORTOUT, 5000).
+% Order timeout check interval in ms
+-define(TOUTCHINT, 1000).
 
--export([start/0, store_order/2, claim_order/2, clear_order/2, list_orders/0]).
+-export([start/0, store_order/2, claim_order/2, clear_order/2, list/0]).
+
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%% Test functions %%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%These kind of functions should maybe be placed in a separate module
--export ([distribute_order/2, list_all_orders/0, test/0]).
--define(NUMBER_OF_FLOORS, 4).
-
-test() ->
-	io:format("~p~n", [is_atom(?MODULE)]),
-	ok.
-
-distribute_order(Type, Floor) ->
-	rpc:multicall(nodes(), ?MODULE,store_order,[Type, Floor]).
-
-list_all_orders() ->
-	rpc:multicall(nodes(), bl3, list_orders, []).
-
-get_order({Pos, State, LastFloor}) ->
-	ok.
-
-%Borrowed from Sivert Bakken
-cost_function({ElevState, ElevFloor, ElevLastDir}, OrderFloor, OrderDir) ->
-  case ElevState of
-  	stuck -> 3*?NUMBER_OF_FLOORS;
-  	_ ->
-      Difference = OrderFloor - ElevFloor, %if negative, order is below
-      erlang:abs(Difference) + 
-      movement_penalty(ElevState, ElevLastDir, Difference) + 
-      turn_penalty(ElevState, ElevFloor, ElevLastDir, OrderFloor) + 
-      order_dir_penalty(ElevLastDir, OrderFloor, OrderDir)
-  end.
-  
-% Cost modifier if traveling to or from order floor
-movement_penalty(stopped, _Dir, _Dif) -> 0;
-movement_penalty(_State, _Dir, 0) -> 1.5;
-
-movement_penalty(_State, Dir, FloorDif) when 
-(Dir == up andalso FloorDif > 0) orelse 
-(Dir == down andalso FloorDif < 0) -> -0.5;
-
-movement_penalty(_State, Dir, FloorDif) when 
-(Dir == up andalso FloorDif < 0) orelse 
-(Dir == down andalso FloorDif > 0) -> 1.5.
-
-% Penalty for changing direction of travel
-turn_penalty(stopped, ElevFloor, _ElevDir, _OrderFloor) when 
-ElevFloor == 0 orelse ElevFloor == (?NUMBER_OF_FLOORS-1) -> 0;
-
-turn_penalty(moving, ElevFloor, ElevDir, _OrderFloor) when 
-(ElevFloor == 1 andalso ElevDir == down); 
-(ElevFloor == (?NUMBER_OF_FLOORS-2) andalso ElevDir == up) -> 0;
-
-turn_penalty(_ElevState, ElevFloor, ElevDir, OrderFloor) when 
-(ElevDir == up andalso OrderFloor < ElevFloor) orelse 
-(ElevDir == down andalso OrderFloor > ElevFloor) -> 0.75;
-
-turn_penalty(_ElevState, _ElevFloor, _ElevDir, _OrderFloor) -> 0.
-
-% Elevators are not allowed to handle orders in wrong 
-% direction if there are orders beyond, cost must agree
-order_dir_penalty(_ElevDir, OrderFloor, _OrderDir) when 
-OrderFloor == 0 orelse OrderFloor == ?NUMBER_OF_FLOORS-1 -> 0;
-
-order_dir_penalty(ElevDir, _OrderFloor, OrderDir) when 
-OrderDir /= int andalso ElevDir /= OrderDir -> ?NUMBER_OF_FLOORS-2+0.25;
-
-order_dir_penalty(_ElevDir, _OrderFloor, _OrderDir) -> 0.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%% Test functions %%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
 
 %%% Backlog interface
 
@@ -96,22 +20,24 @@ start() ->
 
 -spec store_order(up|down|int, Floor::integer()) -> ok.
 store_order(Type, Floor) ->
-	gen_server:call(?MODULE, {store, {Type, Floor}}).
+    rpc:multicall(gen_server, call, [?MODULE, {store, {Type, Floor}}]).
 
 -spec claim_order(up|down|int, Floor::integer()) -> ok.
 claim_order(Type, Floor) ->
-	gen_server:call(?MODULE, {claim, {Type, Floor}}).
+    gen_server:call(?MODULE, {claim, {Type, Floor}}).
 
+-spec clear_order(up|down|int, Floor::integer()) -> ok.
 clear_order(Type, Floor) ->
 	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
-list_orders() ->
+-spec list() -> ok.
+list() ->
 	gen_server:call(?MODULE, {list}).
 
 %%% Server callbacks
 
 init([]) ->
-	erlang:send_after(1000, self(), {timer}),
+	erlang:send_after(?TOUTCHINT, self(), {timer}),
 	ets:new(?ORTAB, [set, named_table]),
 	State = 0,
 	{ok, State}.
@@ -119,22 +45,21 @@ init([]) ->
 % Store order
 handle_call({store, {Type, Floor}}, _From, State) ->
 	Key = case Type of
-		   int ->
-			{int, node()};
-		   _ ->
-		   	{ext, Type}
-	end,
+		      int ->
+			      {int, node()};
+		      _ ->
+			      {ext, Type}
+	      end,
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
 	ets:insert(?ORTAB, Order),
-	rpc:multicall(nodes(), ets, insert, [?ORTAB, {12,34,56}]),
-	{reply, ok, (State + 1)};
+    {reply, ok, (State + 1)};
+
 % Claim order
 %handle_call({claim, {int, Floor}}, _From, State) ->
 %	ok;
 %	% Just update the order everywhere
 %handle_call({claim, {Type, Floor}}, _From, State) ->
 %	ok;
-	
 
 handle_call({claim, {Type, Floor, IP}}, _From, State) ->
 	Now = erlang:monotonic_time(),
@@ -160,7 +85,7 @@ handle_cast(_Msg, State) ->
 	{noreply, State}.
 
 handle_info({timer}, State) ->
-	erlang:send_after(1000, self(), {timer}),
+	erlang:send_after(?TOUTCHINT, self(), {timer}),
 	% Check all external orders for timeout
 	check_for_timeout(ets:match(?ORTAB, {{up,'$1'},'_',claimed,'$2'})),
 	check_for_timeout(ets:match(?ORTAB, {{down,'$1'},'_',claimed,'$2'})),
@@ -175,8 +100,8 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
-%%% Help functions
-%% Deletes all Types at Floor and return number of deleted orders 
+%%% Helper functions
+%% Deletes all Types at Floor and return number of deleted orders
 deleteOrders(Types, Floor) ->
 	length([ets:delete(?ORTAB, { T, Floor}) || T <- Types,
 		ets:member(?ORTAB, {T, Floor})]).
@@ -191,7 +116,7 @@ check_for_timeout([]) ->
 	ok;
 check_for_timeout([[Floor|[Timestamp]]|Tail]) ->
 	Now = erlang:monotonic_time(),
-	Elapsed = erlang:convert_time_unit(Now - Timestamp, native, second),
+	Elapsed = erlang:convert_time_unit(Now - Timestamp, native, millisecond),
 	if Elapsed >= ?ORTOUT ->
 		   io:format("{~p, ~p} timed out!~n", [ext, Floor]),
 		   ets:update_element(?ORTAB, {ext, Floor}, {3, timeout});
@@ -199,3 +124,4 @@ check_for_timeout([[Floor|[Timestamp]]|Tail]) ->
 		   ok
 	end,
 	check_for_timeout(Tail).
+
