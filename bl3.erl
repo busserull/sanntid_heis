@@ -1,6 +1,8 @@
 -module(bl3).
 -behavior(gen_server).
 
+-compile(export_all).
+
 % Names of ETS order table
 -define(ORTAB, ordertable).
 % Time before an order times out in seconds
@@ -94,9 +96,6 @@ store_order(Type, Floor) ->
 -spec claim_order(up|down|int, Floor :: integer()) -> ok.
 claim_order(Type, Floor) ->
 	gen_server:call(?MODULE, {claim, {Type, Floor}}).
-
-clear_order(Type, Floor) ->
-	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
 clear_order(Type, Floor) ->
 	gen_server:call(?MODULE, {clear, {Type, Floor}}).
