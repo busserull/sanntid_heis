@@ -8,7 +8,7 @@
          set_door_light/1, set_floor_indicator/1, set_stop_light/1]).
 
 %%% Interface to the callback module where this behaviour is used.
--spec start_link(Module :: module(), simulator|elevator) -> 
+-spec start_link(Module :: module(), Configs::term()) -> 
     {ok, Pid::pid()} | ignore | {error, {already_started, Pid::pid()} | term()}.
 
 -spec set_motor_dir(up|down|stop) -> ok.
@@ -38,9 +38,9 @@
 %%% API
 %%%----------------------------------------------------------------------
 
-start_link(Module, ElevatorType) ->
+start_link(Module, Configs) ->
     gen_server:start_link(
-        {local, ?MODULE}, ?MODULE, [Module, ElevatorType], []).
+        {local, ?MODULE}, ?MODULE, {Module, Configs}, []).
 
 set_motor_dir(Direction) ->
     gen_server:call(?MODULE, {elev_set_motor_dir, Direction}).
@@ -56,15 +56,30 @@ set_button_light(ButtonType, Floor, State) ->
 %%% Callback functions from gen_server
 %%%----------------------------------------------------------------------
 
-init([Module, ElevatorType]) ->
+init({Module, ElevatorType}) when is_atom(ElevatorType) ->
+    init({Module, [{elevator_type, ElevatorType}]});
+
+init({Module, Configs}) when is_list(Configs) ->
     process_flag(trap_exit, true),
-    Rec = #state{},
-    TopFloor = Rec#state.top_floor,
-    State = #state{
+    %%Helper function
+    Init_state = fun({Config, Value}, State) ->
+        case Config of
+            elevator_type -> State#state{elevator_type = Value};
+            top_floor -> State#state{top_floor = Value};
+            number_of_elevators -> State#state{number_of_elevators = Value};
+            poll_period -> State#state{poll_period = Value};
+            external_program -> State#state{external_program = Value};
+            external_timeout -> State#state{external_timeout = Value};
+            simulator_ip -> State#state{simulator_ip = Value};
+            simulator_port -> State#state{simulator_port = Value}
+        end
+    end,    
+    State = lists:foldl(Init_state, #state{}, Configs),
+    TopFloor = State#state.top_floor,
+    NewState = State#state{
     button_list = combine_lists([up, down, int], lists:seq(0,TopFloor), 0),
-    elevator_type = ElevatorType,
     callback_module = Module},
-    init_continue(State).
+    init_continue(NewState).
 
 init_continue(#state{elevator_type = elevator} = State) ->
     PrivDir = code:priv_dir(elevator_driver),
@@ -77,7 +92,13 @@ init_continue(#state{elevator_type = elevator} = State) ->
 
 init_continue(#state{elevator_type = simulator} = State) ->
     #state{simulator_ip = Ip, simulator_port = Port} = State,
-    {ok, Socket} = gen_tcp:connect(Ip, Port, [binary, {active, false}]),
+    case gen_tcp:connect(Ip, Port, [binary, {active, false}]) of
+        {ok, Socket} ->
+            ok;
+        {error, Reason} ->
+            Socket = the_compiler_dont_trust_me,
+            throw({stop, Reason})
+    end,
     gen_tcp:send(Socket, encode({elev_init, simulator})),
     init_finish(State#state{simulator_socket = Socket}).
 
@@ -212,3 +233,5 @@ decode(<<7,0,_Floor,0>>) -> the_void;
 decode(<<_Cmd,Val,0,0>>) -> Val;
 decode(255) -> the_void;
 decode(Value) -> Value.
+
+config(elevator_type) -> elevator_type.
