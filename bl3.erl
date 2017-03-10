@@ -98,6 +98,9 @@ claim_order(Type, Floor) ->
 clear_order(Type, Floor) ->
 	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
+clear_order(Type, Floor) ->
+	gen_server:call(?MODULE, {clear, {Type, Floor}}).
+
 list_orders() ->
 	gen_server:call(?MODULE, {list}).
 
