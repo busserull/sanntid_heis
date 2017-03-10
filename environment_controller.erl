@@ -1,5 +1,4 @@
 -module(environment_controller).
--include_lib("eunit/include/eunit.hrl").
 -behaviour (gen_statem).
 -behaviour(elevator_driver).
 
