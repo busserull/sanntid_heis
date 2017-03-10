@@ -1,4 +1,4 @@
--module(net).
+-module(dist).
 -behavior(gen_server).
 
 -define(ELEVNAME, "beastly_beast@").
@@ -7,7 +7,7 @@
 -define(BROADCAST_TIME, 1000).
 
 %% public API
--export([start/0]).
+-export([start/0, share_order/2]).
 %% gen_server callback functions
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
@@ -15,6 +15,10 @@
 %% API
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+-spec share_order(up|down|int, Floor::integer()) -> ok.
+share_order(Type, Floor) ->
+	rpc:multicall(nodes(), backlog, store_order, [Type, Floor]).
 
 %% callbacks
 init([]) ->
