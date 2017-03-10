@@ -1,4 +1,4 @@
--module(bl3).
+-module(backlog).
 -behavior(gen_server).
 
 -compile(export_all).
@@ -18,13 +18,18 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %These kind of functions should maybe be placed in a separate module
--export ([distribute_order/2, list_all_orders/0]).
+-export ([distribute_order/2, list_all_orders/0, test/0]).
 -define(NUMBER_OF_FLOORS, 4).
+
+test() ->
+	io:format("~p~n", [is_atom(?MODULE)]),
+	ok.
+
 distribute_order(Type, Floor) ->
-	rpc:multicall(bl3,store_order,[Type, Floor]).
+	rpc:multicall(nodes(), ?MODULE,store_order,[Type, Floor]).
 
 list_all_orders() ->
-	rpc:multicall(bl3, list_orders, []).
+	rpc:multicall(nodes(), bl3, list_orders, []).
 
 get_order({Pos, State, LastFloor}) ->
 	ok.
@@ -89,11 +94,11 @@ order_dir_penalty(_ElevDir, _OrderFloor, _OrderDir) -> 0.
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec store_order(up|down|int, Floor :: integer()) -> ok.
+-spec store_order(up|down|int, Floor::integer()) -> ok.
 store_order(Type, Floor) ->
 	gen_server:call(?MODULE, {store, {Type, Floor}}).
 
--spec claim_order(up|down|int, Floor :: integer()) -> ok.
+-spec claim_order(up|down|int, Floor::integer()) -> ok.
 claim_order(Type, Floor) ->
 	gen_server:call(?MODULE, {claim, {Type, Floor}}).
 
