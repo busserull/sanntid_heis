@@ -4,54 +4,51 @@
 -define(ELEVNAME, "beastly_beast@").
 -define(COOKIE, 'beistheis').
 -define(PEER_DISC_PORT, 23600).
--define(BROADCAST_TIME, 1000).
+-define(BROADCAST_INTERVAL, 1000).
 
 %% public API
--export([start/0, share_order/2]).
+-export([start/0]).
 %% gen_server callback functions
--export([init/1, handle_call/3, handle_cast/2,
-		handle_info/2, terminate/2, code_change/3]).
+-export([init/1, handle_info/2, terminate/2,
+         handle_call/3, handle_cast/2, code_change/3]).
 
 %% API
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec share_order(up|down|int, Floor::integer()) -> ok.
-share_order(Type, Floor) ->
-	rpc:multicall(nodes(), backlog, store_order, [Type, Floor]).
-
 %% callbacks
 init([]) ->
-	erlang:send_after(?BROADCAST_TIME, self(), {broadcast}),
 	net_kernel:start([get_hostname(), longnames]),
 	erlang:set_cookie(node(), ?COOKIE),
 	{ok, Socket} = gen_udp:open(?PEER_DISC_PORT, [{broadcast, true}, binary]),
+    erlang:send_after(?BROADCAST_INTERVAL, self(), broadcast),
 	{ok, Socket}.
 
-handle_call(Msg, _From, State) ->
-	io:format("~p", [Msg]),
-	{reply, ok, State}.
-
-handle_cast(_Msg, State) ->
-	{noreply, State}.
-
-handle_info({broadcast}, State) ->
-	erlang:send_after(?BROADCAST_TIME, self(), {broadcast}),
+handle_info(broadcast, Socket) ->
 	Msg = list_to_binary(io_lib:format("~p", [get_hostname()])),
-	gen_udp:send(State, {255,255,255,255}, ?PEER_DISC_PORT, Msg),
-	{noreply, State};
-handle_info({udp, _ErPort, _IP, _Port, BinMsg}, State) ->
+	gen_udp:send(Socket, {255,255,255,255}, ?PEER_DISC_PORT, Msg),
+    erlang:send_after(?BROADCAST_INTERVAL, self(), {broadcast}),
+	{noreply, Socket};
+
+handle_info({udp, _ErPort, _IP, _Port, BinMsg}, Socket) ->
 	[_ | Node] = lists:droplast(binary_to_list(BinMsg)),
 	net_kernel:connect(list_to_atom(Node)),
-	{noreply, State};
-handle_info(_Msg, State) ->
-	{noreply, State}.
+	{noreply, Socket};
 
-terminate(_Reason, _State) ->
-	ok.
+handle_info(_Msg, Socket) ->
+	{noreply, Socket}.
 
-code_change(_OldVsn, State, _Extra) ->
-	{ok, State}.
+terminate(_Reason, Socket) ->
+    gen_udp:close(Socket),
+    ok.
+
+handle_call(_Msg, _From, Socket) -> {reply, ok, Socket}.
+
+handle_cast(_Msg, Socket) -> {noreply, Socket}.
+
+
+code_change(_OldVsn, Socket, _Extra) ->
+	{ok, Socket}.
 
 %% help functions
 get_hostname() ->
