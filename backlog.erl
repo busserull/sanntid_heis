@@ -15,10 +15,14 @@
 
 %%% Backlog interface
 
+-spec start() -> ok.
+-spec store_order(up|down|int, Floor::integer()) -> ok.
+-spec claim_order(up|down|int, Floor::integer()) -> ok.
+-spec clear_order(up|down|int, Floor::integer()) -> ok.
+
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec store_order(up|down|int, Floor::integer()) -> ok.
 store_order(Type, Floor) ->
 	Key = case Type of
 		      int ->
@@ -28,14 +32,10 @@ store_order(Type, Floor) ->
 	      end,
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
     rpc:multicall(gen_server, call, [?MODULE, {store, Order}]).
-    %gen_server:call(?MODULE, {store, {Type, Floor}}).
-    %rpc:multicall(gen_server, call, [?MODULE, {store, {{Type, node()}, Floor}}]).
 
--spec claim_order(up|down|int, Floor::integer()) -> ok.
 claim_order(Type, Floor) ->
     gen_server:call(?MODULE, {claim, {Type, Floor}}).
 
--spec clear_order(up|down|int, Floor::integer()) -> ok.
 clear_order(Type, Floor) ->
 	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
@@ -61,21 +61,6 @@ init([]) ->
 handle_call({store, Order}, _From, State) ->
     ets:insert(?ORTAB, Order),
     {reply, ok, (State + 1)};
-%handle_call({store, {Type, Floor}}, _From, State) ->
-    % Element 1 contains up|down|int
-    % Element 2 is sending node, relevant for int only
-%    gen_server:call()
-%    rpc:multicall(?MODULE, insert, [Order]),
-    %insert(Order),
-	%ets:insert(?ORTAB, Order),
-%    {reply, ok, (State + 1)};
-
-% Claim order
-%handle_call({claim, {int, Floor}}, _From, State) ->
-%	ok;
-%	% Just update the order everywhere
-%handle_call({claim, {Type, Floor}}, _From, State) ->
-%	ok;
 
 handle_call({claim, {Type, Floor, IP}}, _From, State) ->
 	Now = erlang:monotonic_time(),
