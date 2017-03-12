@@ -3,7 +3,7 @@
 
 % Names of ETS order table
 -define(ORTAB, ordertable).
-% Time before an order times out in ms
+% Time before a claimed order times out in ms
 -define(ORTOUT, 5000).
 % Order timeout check interval in ms
 -define(TOUTCHINT, 1000).
@@ -38,26 +38,6 @@ claim_order(Type, Floor) ->
 
 sync_orders() ->
     rpc:multicall(?MODULE, helper_sync, []).
-
-%%% Helper functions
-make_order_key(Type) ->
-	Key = case Type of
-		      int ->
-			      {int, node()};
-		      _ ->
-			      {ext, Type}
-	      end,
-    Key.
-
-helper_sync() ->
-    helper_sync(ets:first(?ORTAB)).
-helper_sync('$end_of_table') ->
-    ok;
-helper_sync(Key) ->
-    Order = ets:lookup(?ORTAB, Key),
-    rpc:multicall(gen_server, call, [?MODULE, {store, Order}]),
-    helper_sync(ets:next(?ORTAB, Key)).
-
 
 -spec list() -> ok.
 list() ->
@@ -150,3 +130,20 @@ check_for_timeout([[Type, Floor, Timestamp]|Tail]) ->
 	end,
 	check_for_timeout(Tail).
 
+make_order_key(Type) ->
+	Key = case Type of
+		      int ->
+			      {int, node()};
+		      _ ->
+			      {ext, Type}
+	      end,
+    Key.
+
+helper_sync() ->
+    helper_sync(ets:first(?ORTAB)).
+helper_sync('$end_of_table') ->
+    ok;
+helper_sync(Key) ->
+    Order = ets:lookup(?ORTAB, Key),
+    rpc:multicall(gen_server, call, [?MODULE, {store, Order}]),
+    helper_sync(ets:next(?ORTAB, Key)).
