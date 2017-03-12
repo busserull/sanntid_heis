@@ -5,6 +5,7 @@
 -define(COOKIE, 'beistheis').
 -define(PEER_DISC_PORT, 23600).
 -define(BROADCAST_INTERVAL, 1000).
+-define(BACKLOG_MODULE, backlog).
 
 %% public API
 -export([start/0]).
@@ -32,7 +33,16 @@ handle_info(broadcast, Socket) ->
 
 handle_info({udp, _ErPort, _IP, _Port, BinMsg}, Socket) ->
 	[_ | Node] = lists:droplast(binary_to_list(BinMsg)),
+    LengthBefore = length(nodes()),
 	net_kernel:connect(list_to_atom(Node)),
+    LengthAfter = length(nodes()),
+    Change = LengthAfter - LengthBefore,
+    case Change of
+        0 ->
+            ok;
+        _ ->
+            ?BACKLOG_MODULE:sync_orders()
+    end,
 	{noreply, Socket};
 
 handle_info(_Msg, Socket) ->
