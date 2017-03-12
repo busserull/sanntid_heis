@@ -40,18 +40,21 @@ clear_order(Type, Floor) ->
 	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
 sync_orders() ->
-    rpc:multicall(gen_server, call, [?MODULE, {sync}]).
-
-share_all_orders() ->
-    share_all_orders(ets:first(?ORTAB)).
-share_all_orders('$end_of_table') ->
+    share_all().
+%    rpc:multicall(?MODULE, helper_sync, []).
+    %gen_server:call(?MODULE, sync).
+%    rpc:multicall(gen_server, call, [?MODULE, sync]).
+%
+%%%%%%%%%%%%%%%%%%%%%
+share_all() ->
+    share_all(ets:first(?ORTAB)).
+share_all('$end_of_table') ->
     ok;
-share_all_orders(Key) ->
+share_all(Key) ->
     Order = ets:lookup(?ORTAB, Key),
     rpc:multicall(gen_server, call, [?MODULE, {store, Order}]),
-    share_all_orders(ets:next(?ORTAB, Key)).
+    share_all(ets:next(?ORTAB, Key)).
 
-%%%%%%%%%%%%%%%%%%%%%
 
 -spec list() -> ok.
 list() ->
@@ -70,6 +73,12 @@ init([]) ->
 handle_call({store, Order}, _From, State) ->
     ets:insert(?ORTAB, Order),
     {reply, ok, (State + 1)};
+
+handle_call(sync, _From, State) ->
+    io:format("Syncing...~n"),
+    %helper_sync(ets:first(?ORTAB)),
+%    gen_server:call(?MODULE, {sync, ets:first(?ORTAB)}),
+    {reply, ok, State};
 
 handle_call({claim, {Type, Floor, IP}}, _From, State) ->
 	Now = erlang:monotonic_time(),
