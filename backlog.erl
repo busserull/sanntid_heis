@@ -8,7 +8,8 @@
 % Order timeout check interval in ms
 -define(TOUTCHINT, 1000).
 
--export([start/0, store_order/2, claim_order/2, clear_order/2, list/0, sync_orders/0]).
+-export([start/0, store_order/2, claim_order/2, clear_order/2, list/0, sync_orders/0,
+         helper_sync/0]).
 
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
@@ -40,20 +41,17 @@ clear_order(Type, Floor) ->
 	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
 sync_orders() ->
-    share_all().
-%    rpc:multicall(?MODULE, helper_sync, []).
-    %gen_server:call(?MODULE, sync).
-%    rpc:multicall(gen_server, call, [?MODULE, sync]).
-%
+    rpc:multicall(?MODULE, helper_sync, []).
+
 %%%%%%%%%%%%%%%%%%%%%
-share_all() ->
-    share_all(ets:first(?ORTAB)).
-share_all('$end_of_table') ->
+helper_sync() ->
+    helper_sync(ets:first(?ORTAB)).
+helper_sync('$end_of_table') ->
     ok;
-share_all(Key) ->
+helper_sync(Key) ->
     Order = ets:lookup(?ORTAB, Key),
     rpc:multicall(gen_server, call, [?MODULE, {store, Order}]),
-    share_all(ets:next(?ORTAB, Key)).
+    helper_sync(ets:next(?ORTAB, Key)).
 
 
 -spec list() -> ok.
@@ -76,6 +74,7 @@ handle_call({store, Order}, _From, State) ->
 
 handle_call(sync, _From, State) ->
     io:format("Syncing...~n"),
+    helper_sync(),
     %helper_sync(ets:first(?ORTAB)),
 %    gen_server:call(?MODULE, {sync, ets:first(?ORTAB)}),
     {reply, ok, State};
