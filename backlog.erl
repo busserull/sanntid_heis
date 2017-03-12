@@ -8,8 +8,8 @@
 % Order timeout check interval in ms
 -define(TOUTCHINT, 1000).
 
--export([start/0, store_order/2, claim_order/2, clear_order/2, list/0, sync_orders/0]).
--export([helper_sync/0, alter_order/3, make_order_key/1]).
+-export([start/0, store_order/2, alter_order/3, claim_order/2, list/0, sync_orders/0]).
+-export([helper_sync/0, make_order_key/1]).
 
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
@@ -20,7 +20,6 @@
 -spec store_order(up|down|int, Floor::integer()) -> ok.
 -spec alter_order(up|down|int, Floor::integer(), claimed|timeout|complete) -> ok.
 -spec claim_order(up|down|int, Floor::integer()) -> ok.
--spec clear_order(up|down|int, Floor::integer()) -> ok.
 
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -36,9 +35,6 @@ alter_order(Type, Floor, NewState) ->
 
 claim_order(Type, Floor) ->
     gen_server:call(?MODULE, {claim, {Type, Floor}}).
-
-clear_order(Type, Floor) ->
-	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
 sync_orders() ->
     rpc:multicall(?MODULE, helper_sync, []).
@@ -69,6 +65,7 @@ list() ->
 
 %%% Server callbacks
 
+% Init
 init([]) ->
 	erlang:send_after(?TOUTCHINT, self(), {timer}),
 	ets:new(?ORTAB, [set, named_table]),
@@ -109,16 +106,6 @@ handle_call({claim, {Type, Floor, IP}}, _From, State) ->
 	ets:update_element(?ORTAB,{Type, Floor},[{2,IP},{3,claimed},{4,Now}]),
 	{reply, ok, State};
 
-handle_call({clear, {Type, Floor}}, _From, State) ->
-	Types = case Type of
-		internal ->
-			[internal, up, down];
-		_UpDown ->
-			[up, down]
-	end,
-	NumberOfDeletedOrders = deleteOrders(Types, Floor),
-	{reply, ok, State - NumberOfDeletedOrders};
-
 handle_call({list}, _From, State) ->
 	io:format("Number of elements = ~p~n",[State]),
 	list_orders(ets:first(?ORTAB)),
@@ -127,13 +114,12 @@ handle_call({list}, _From, State) ->
 handle_cast(_Msg, State) ->
 	{noreply, State}.
 
+% Timeout
 handle_info({timer}, State) ->
 	erlang:send_after(?TOUTCHINT, self(), {timer}),
-	% Check all external orders for timeout
-	check_for_timeout(ets:match(?ORTAB, {{up,'$1'},'_',claimed,'$2'})),
-	check_for_timeout(ets:match(?ORTAB, {{down,'$1'},'_',claimed,'$2'})),
-	%check_for_timeout(ets:first(?ORTAB)),
+    check_for_timeout(ets:match(?ORTAB, {{{ext, '$1'}, '$2'}, claimed, '$3'})),
 	{noreply, State};
+
 handle_info(_Msg, State) ->
 	{noreply, State}.
 
@@ -144,11 +130,6 @@ code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 %%% Helper functions
-%% Deletes all Types at Floor and return number of deleted orders
-
-deleteOrders(Types, Floor) ->
-	length([ets:delete(?ORTAB, { T, Floor}) || T <- Types,
-		ets:member(?ORTAB, {T, Floor})]).
 
 list_orders('$end_of_table') ->
 	ok;
@@ -158,12 +139,12 @@ list_orders(Order) ->
 
 check_for_timeout([]) ->
 	ok;
-check_for_timeout([[Floor|[Timestamp]]|Tail]) ->
+check_for_timeout([[Type, Floor, Timestamp]|Tail]) ->
 	Now = erlang:monotonic_time(),
 	Elapsed = erlang:convert_time_unit(Now - Timestamp, native, millisecond),
 	if Elapsed >= ?ORTOUT ->
 		   io:format("{~p, ~p} timed out!~n", [ext, Floor]),
-		   ets:update_element(?ORTAB, {ext, Floor}, {3, timeout});
+           alter_order(Type, Floor, timeout);
 	   true ->
 		   ok
 	end,
