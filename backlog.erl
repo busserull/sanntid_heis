@@ -8,7 +8,7 @@
 % Order timeout check interval in ms
 -define(TOUTCHINT, 1000).
 
--export([start/0, store_order/2, claim_order/2, clear_order/2, list/0]).
+-export([start/0, store_order/2, claim_order/2, clear_order/2, list/0, share_all/0]).
 
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
@@ -20,7 +20,16 @@ start() ->
 
 -spec store_order(up|down|int, Floor::integer()) -> ok.
 store_order(Type, Floor) ->
-    rpc:multicall(gen_server, call, [?MODULE, {store, {{Type, node()}, Floor}}]).
+	Key = case Type of
+		      int ->
+			      {int, node()};
+		      _ ->
+			      {ext, Type}
+	      end,
+	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
+    rpc:multicall(gen_server, call, [?MODULE, {store, Order}]).
+    %gen_server:call(?MODULE, {store, {Type, Floor}}).
+    %rpc:multicall(gen_server, call, [?MODULE, {store, {{Type, node()}, Floor}}]).
 
 -spec claim_order(up|down|int, Floor::integer()) -> ok.
 claim_order(Type, Floor) ->
@@ -30,9 +39,15 @@ claim_order(Type, Floor) ->
 clear_order(Type, Floor) ->
 	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
+%%%%%%%%%%%%%%%%%%%%%
+
 -spec list() -> ok.
 list() ->
 	gen_server:call(?MODULE, {list}).
+
+-spec share_all() -> ok.
+share_all() ->
+    gen_server:call(?MODULE, {share_all, ets:first(?ORTAB)}).
 
 %%% Server callbacks
 
@@ -43,18 +58,17 @@ init([]) ->
 	{ok, State}.
 
 % Store order
-handle_call({store, {Type, Floor}}, _From, State) ->
+handle_call({store, Order}, _From, State) ->
+    ets:insert(?ORTAB, Order),
+    {reply, ok, (State + 1)};
+%handle_call({store, {Type, Floor}}, _From, State) ->
     % Element 1 contains up|down|int
     % Element 2 is sending node, relevant for int only
-	Key = case element(1, Type) of
-		      int ->
-			      {int, element(2, Type)};
-		      _ ->
-			      {ext, element(1, Type)}
-	      end,
-	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
-	ets:insert(?ORTAB, Order),
-    {reply, ok, (State + 1)};
+%    gen_server:call()
+%    rpc:multicall(?MODULE, insert, [Order]),
+    %insert(Order),
+	%ets:insert(?ORTAB, Order),
+%    {reply, ok, (State + 1)};
 
 % Claim order
 %handle_call({claim, {int, Floor}}, _From, State) ->
@@ -81,7 +95,17 @@ handle_call({clear, {Type, Floor}}, _From, State) ->
 handle_call({list}, _From, State) ->
 	io:format("Number of elements = ~p~n",[State]),
 	list_orders(ets:first(?ORTAB)),
-	{reply, ok, State}.
+	{reply, ok, State};
+
+handle_call({helper_insert, Order}, _From, State) ->
+    ets:insert(?ORTAB, Order),
+    {reply, ok, State};
+
+handle_call({share_all, '$end_of_table'}, _From, State) ->
+    {reply, ok, State};
+handle_call({share_all, Order}, _From, State) ->
+    rpc:multicall(?MODULE, insert, [Order]),
+    {reply, ok, State}.
 
 handle_cast(_Msg, State) ->
 	{noreply, State}.
@@ -104,6 +128,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%% Helper functions
 %% Deletes all Types at Floor and return number of deleted orders
+
 deleteOrders(Types, Floor) ->
 	length([ets:delete(?ORTAB, { T, Floor}) || T <- Types,
 		ets:member(?ORTAB, {T, Floor})]).
