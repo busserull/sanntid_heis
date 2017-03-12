@@ -20,7 +20,7 @@ start() ->
 
 -spec store_order(up|down|int, Floor::integer()) -> ok.
 store_order(Type, Floor) ->
-    rpc:multicall(gen_server, call, [?MODULE, {store, {Type, Floor}}]).
+    rpc:multicall(gen_server, call, [?MODULE, {store, {{Type, node()}, Floor}}]).
 
 -spec claim_order(up|down|int, Floor::integer()) -> ok.
 claim_order(Type, Floor) ->
@@ -44,11 +44,13 @@ init([]) ->
 
 % Store order
 handle_call({store, {Type, Floor}}, _From, State) ->
-	Key = case Type of
+    % Element 1 contains up|down|int
+    % Element 2 is sending node, relevant for int only
+	Key = case element(1, Type) of
 		      int ->
-			      {int, node()};
+			      {int, element(2, Type)};
 		      _ ->
-			      {ext, Type}
+			      {ext, element(1, Type)}
 	      end,
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
 	ets:insert(?ORTAB, Order),
