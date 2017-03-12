@@ -8,8 +8,8 @@
 % Order timeout check interval in ms
 -define(TOUTCHINT, 1000).
 
--export([start/0, store_order/2, claim_order/2, clear_order/2, list/0, sync_orders/0,
-         helper_sync/0]).
+-export([start/0, store_order/2, claim_order/2, clear_order/2, list/0, sync_orders/0]).
+-export([helper_sync/0, alter_order/3, make_order_key/1]).
 
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
@@ -18,6 +18,7 @@
 
 -spec start() -> ok.
 -spec store_order(up|down|int, Floor::integer()) -> ok.
+-spec alter_order(up|down|int, Floor::integer(), claimed|timeout|complete) -> ok.
 -spec claim_order(up|down|int, Floor::integer()) -> ok.
 -spec clear_order(up|down|int, Floor::integer()) -> ok.
 
@@ -25,14 +26,13 @@ start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 store_order(Type, Floor) ->
-	Key = case Type of
-		      int ->
-			      {int, node()};
-		      _ ->
-			      {ext, Type}
-	      end,
+    Key = make_order_key(Type),
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
     rpc:multicall(gen_server, call, [?MODULE, {store, Order}]).
+
+alter_order(Type, Floor, NewState) ->
+    Key = {make_order_key(Type), Floor},
+    rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
 
 claim_order(Type, Floor) ->
     gen_server:call(?MODULE, {claim, {Type, Floor}}).
@@ -43,7 +43,16 @@ clear_order(Type, Floor) ->
 sync_orders() ->
     rpc:multicall(?MODULE, helper_sync, []).
 
-%%%%%%%%%%%%%%%%%%%%%
+%%% Helper functions
+make_order_key(Type) ->
+	Key = case Type of
+		      int ->
+			      {int, node()};
+		      _ ->
+			      {ext, Type}
+	      end,
+    Key.
+
 helper_sync() ->
     helper_sync(ets:first(?ORTAB)).
 helper_sync('$end_of_table') ->
@@ -58,7 +67,6 @@ helper_sync(Key) ->
 list() ->
 	gen_server:call(?MODULE, {list}).
 
-
 %%% Server callbacks
 
 init([]) ->
@@ -71,6 +79,12 @@ init([]) ->
 handle_call({store, Order}, _From, State) ->
     ets:insert(?ORTAB, Order),
     {reply, ok, (State + 1)};
+
+% Alter order
+handle_call({alter, Key, NewState}, _From, State) ->
+    Now = erlang:monotonic_time(),
+    ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
+    {reply, ok, State};
 
 handle_call(sync, _From, State) ->
     io:format("Syncing...~n"),
