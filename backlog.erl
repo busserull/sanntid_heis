@@ -8,7 +8,7 @@
 % Order timeout check interval in ms
 -define(TOUTCHINT, 1000).
 
--export([start/0, store_order/2, claim_order/2, clear_order/2, list/0, share_all/0]).
+-export([start/0, store_order/2, claim_order/2, clear_order/2, list/0, sync_orders/0]).
 
 -export([init/1, handle_call/3, handle_cast/2,
 		handle_info/2, terminate/2, code_change/3]).
@@ -39,15 +39,24 @@ claim_order(Type, Floor) ->
 clear_order(Type, Floor) ->
 	gen_server:call(?MODULE, {clear, {Type, Floor}}).
 
+sync_orders() ->
+    rpc:multicall(gen_server, call, [?MODULE, {sync}]).
+
+share_all_orders() ->
+    share_all_orders(ets:first(?ORTAB)).
+share_all_orders('$end_of_table') ->
+    ok;
+share_all_orders(Key) ->
+    Order = ets:lookup(?ORTAB, Key),
+    rpc:multicall(gen_server, call, [?MODULE, {store, Order}]),
+    share_all_orders(ets:next(?ORTAB, Key)).
+
 %%%%%%%%%%%%%%%%%%%%%
 
 -spec list() -> ok.
 list() ->
 	gen_server:call(?MODULE, {list}).
 
--spec share_all() -> ok.
-share_all() ->
-    gen_server:call(?MODULE, {share_all, ets:first(?ORTAB)}).
 
 %%% Server callbacks
 
