@@ -76,11 +76,22 @@ init([]) ->
 	{ok, State}.
 
 % Store order
-handle_call({store, Order}, _From, State) ->
+handle_call({store, Order}, _From, _State) ->
     ets:insert(?ORTAB, Order),
-    {reply, ok, (State + 1)};
+    {reply, ok, ets:info(?ORTAB, size)};
 
 % Alter order
+handle_call({alter, Key, complete}, _From, _State) ->
+    {{Type, Node}, Floor} = Key,
+    ets:delete(?ORTAB, {{ext, up}, Floor}),
+    ets:delete(?ORTAB, {{ext, down}, Floor}),
+    case Type of
+        int ->
+            ets:delete(?ORTAB, {{int, Node}, Floor});
+        _ ->
+            ok
+    end,
+    {reply, ok, ets:info(?ORTAB, size)};
 handle_call({alter, Key, NewState}, _From, State) ->
     Now = erlang:monotonic_time(),
     ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
@@ -111,17 +122,7 @@ handle_call({clear, {Type, Floor}}, _From, State) ->
 handle_call({list}, _From, State) ->
 	io:format("Number of elements = ~p~n",[State]),
 	list_orders(ets:first(?ORTAB)),
-	{reply, ok, State};
-
-handle_call({helper_insert, Order}, _From, State) ->
-    ets:insert(?ORTAB, Order),
-    {reply, ok, State};
-
-handle_call({share_all, '$end_of_table'}, _From, State) ->
-    {reply, ok, State};
-handle_call({share_all, Order}, _From, State) ->
-    rpc:multicall(?MODULE, insert, [Order]),
-    {reply, ok, State}.
+	{reply, ok, State}.
 
 handle_cast(_Msg, State) ->
 	{noreply, State}.
