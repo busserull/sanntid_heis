@@ -112,17 +112,16 @@ code_change(_Vsn, State, Data, _Extra) ->
 %%%----------------------------------------------------------------------
 
 deside_what_to_do(Order, Data) ->
-    LastFloor = Data#state.last_floor,
     case Order of
         open_door ->
-            enter_door_open_state(LastFloor, Data);
+            enter_door_open_state(Data);
         none ->
             enter_idle_state(Data);
-        OrderedFloor ->
-            enter_moving_state(OrderedFloor, LastFloor, Data)
+        OrderedDir ->
+            enter_moving_state(OrderedDir, Data)
     end.
 
-enter_door_open_state(_Floor, Data) ->
+enter_door_open_state(Data) ->
     %backlog:finnish_order(Floor),
     elevator_driver:set_motor_dir(stop),
     elevator_driver:set_door_light(on),
@@ -134,14 +133,10 @@ enter_idle_state(Data) ->
     {next_state, idle, Data#state{dir = stop},
     [{state_timeout, 1000, nothing}]}.
 
-enter_moving_state(OrderedFloor, LastFloor, Data) ->
-    Dir = direction(OrderedFloor, LastFloor),
+enter_moving_state(Dir, Data) ->
     elevator_driver:set_motor_dir(Dir),
     {next_state, moving, Data#state{dir = Dir},
     [{state_timeout, Data#state.traveling_timeout, nothing}]}.
-
-direction(OrderedFloor, Floor) when OrderedFloor < Floor -> down;
-direction(OrderedFloor, Floor) when OrderedFloor > Floor -> up.
 
 get_env(Environment)->
     {ok,Value} = application:get_env(Environment),
