@@ -117,10 +117,9 @@ handle_call({notify, NewState}, _From, {_OldState, OrderList}) ->
 
 % List orders
 handle_call({list}, _From, State) ->
-    {{Floor, Dir, AtFloor}, OrderList} = State,
+    {{Floor, Dir, AtFloor}, CurrentOrder} = State,
     io:format("At ~p, moving ~p; ~p~n", [Floor, Dir, AtFloor]),
-    io:format("~p~n", [OrderList]),
-    io:format("~p orders in backlog~n", [length(OrderList)]),
+    io:format("Current order: ~p~n", [CurrentOrder]),
 	list_orders(ets:first(?ORTAB)),
 	{reply, ok, State}.
 
