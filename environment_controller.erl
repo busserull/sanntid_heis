@@ -139,4 +139,4 @@ direction(OrderedFloor, Floor) when OrderedFloor > Floor -> up.
 
 get_env(Environment)->
     {ok,Value} = application:get_env(Environment),
-    Value. 
+    Value.

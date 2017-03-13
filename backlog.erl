@@ -115,7 +115,7 @@ handle_call(get_order, _From, {State, OrderList}) ->
               0 ->
                   {none, none};
               _ ->
-                  element(1, OrderList)
+                  hd(OrderList)
           end,
     {reply, element(2, Key), {State, OrderList}};
 
