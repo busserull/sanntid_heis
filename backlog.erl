@@ -6,7 +6,7 @@
 -define(ORTAB, ordertable).
 
 %%% API
--export([start/0, store_order/2, alter_order/3, get_order/2, list/0]).
+-export([start/0, store_order/2, alter_order/3, notify_state/3, get_order/0, list/0]).
 %%% Helper functions
 -export([sync_orders/0, helper_sync/0, make_order_key/1]).
 %%% Server callback functions
@@ -18,7 +18,8 @@
 -spec start() -> ok.
 -spec store_order(up|down|int, Floor::integer()) -> ok.
 -spec alter_order(up|down|int, Floor::integer(), claimed|timeout|complete) -> ok.
--spec get_order(ElevFloor::integer(), up|down|stop) -> ok.
+-spec notify_state(ElevFloor::integer(), up|down|stop, at_floor|in_the_void) -> ok.
+-spec get_order() -> ok.
 
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -32,20 +33,20 @@ alter_order(Type, Floor, NewState) ->
     Key = {make_order_key(Type), Floor},
     rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
 
+notify_state(ElevFloor, ElevDir, AtFloor) ->
+    gen_server:call(?MODULE, {notify, {ElevFloor, ElevDir, AtFloor}}).
 
 
-get_order(ElevFloor, ElevDir) ->
-    {{Type, Dir}, Floor} = cost:optimal(ElevFloor, ElevDir, ets:first(?ORTAB)),
-    Key = case Type of
-              ext ->
-                  {Dir, Floor};
-              int ->
-                  {int, Floor}
-          end,
-    io:format("Best fit: ~p~n", [Key]).
-
-%%%%%%%
-
+get_order() ->
+    gen_server:call(?MODULE, {assign, ets:first(?ORTAB)}).
+%    {{Type, Dir}, Floor} = cost:optimal(ElevFloor, ElevDir, ets:first(?ORTAB)),
+%    Key = case Type of
+%              ext ->
+%                  {Dir, Floor};
+%              int ->
+%                  {int, Floor}
+%          end,
+%    io:format("Best fit: ~p~n", [Key]).
 
 %%% Server callbacks
 
@@ -82,9 +83,26 @@ handle_call({alter, Key, NewState}, _From, State) ->
     ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
     {reply, ok, State};
 
+% Update known elevator state
+handle_call({notify, NewState}, _From, {_OldState, OrderList}) ->
+    {reply, ok, {NewState, OrderList}};
+
+% Assign order
+handle_call({assign, Key}, _From, {State, OldList}) ->
+    NewList = case lists:member(Key, OldList) of
+                  true ->
+                      OldList;
+                  false ->
+                      OldList ++ [Key]
+              end,
+    {reply, ok, {State, NewList}};
+
 % List orders
 handle_call({list}, _From, State) ->
-    io:format("~p orders in backlog~n", [State]),
+    {{Floor, Dir, AtFloor}, OrderList} = State,
+    io:format("At ~p, moving ~p; ~p~n", [Floor, Dir, AtFloor]),
+    io:format("~p~n", [OrderList]),
+    io:format("~p orders in backlog~n", [length(OrderList)]),
 	list_orders(ets:first(?ORTAB)),
 	{reply, ok, State}.
 
