@@ -110,14 +110,13 @@ handle_call({alter, Key, NewState}, _From, State) ->
 
 % Get order
 handle_call(get_order, _From, {State, OldList}) ->
-    OrderList = cost:sort_on_distance(OldList, State),
+    OrderList = OldList,
     {ElevFloor, _Dir, _AtFloor} = State,
-    OrderKey = hd(OrderList),
-    Diff = case OrderKey of
+    Diff = case OrderList of
                   [] ->
                       none;
                   _ ->
-                      element(2, OrderKey) - ElevFloor
+                      element(2, hd(OrderList)) - ElevFloor
            end,
     Command = case Diff of
                   none ->
