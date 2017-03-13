@@ -99,6 +99,7 @@ handle_call(get_order, _From, {State, OldOrder}) ->
                _ ->
                    element(2, CurrentOrder) - ElevFloor
            end,
+    io:format("Diff is ~p~n", [Diff]),
     {NewOrder, Command} = case Diff of
                               none ->
                                   {none, none};
@@ -109,6 +110,7 @@ handle_call(get_order, _From, {State, OldOrder}) ->
                               Num when Num < 0 ->
                                   {CurrentOrder, down}
                           end,
+    io:format("Command is ~p~n", [Command]),
     {reply, Command, {State, NewOrder}};
 
 % Update known elevator state %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Updates State
