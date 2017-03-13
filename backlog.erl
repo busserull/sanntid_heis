@@ -88,7 +88,7 @@ handle_call(get_order, _From, {State, OldOrder}) ->
                        none when AtFloor == in_the_void andalso Dir == up ->
                            cost:optimal(ElevFloor + 1, Dir, ets:first(?ORTAB));
                        none when AtFloor == in_the_void andalso Dir == down ->
-                           cost:optiamL(ElevFloor - 1, Dir, ets:first(?ORTAB));
+                           cost:optiaml(ElevFloor - 1, Dir, ets:first(?ORTAB));
                        _ ->
                            OldOrder
                    end,
@@ -113,6 +113,7 @@ handle_call(get_order, _From, {State, OldOrder}) ->
 
 % Update known elevator state %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Updates State
 handle_call({notify, NewState}, _From, {_OldState, OrderList}) ->
+    io:format("New state: ~p~n", [NewState]),
     {reply, ok, {NewState, OrderList}};
 
 % List orders
