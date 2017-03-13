@@ -59,10 +59,13 @@ get_order() ->
 
 assign_order(Key) ->
     {Costs, _} = rpc:multicall(gen_server, call, [?MODULE, {get_cost, Key}]),
-    {_Cost, Node} = lists:min(Costs),
-    rpc:call(Node(), gen_server, cast, {assign, Key}),
+    {_Cost, _Node} = lists:min(Costs),
+    %io:format("Before rpc~n"),
+    %rpc:call([Node()], gen_server, cast, [?MODULE, {assign, Key}]),
+    %io:format("After rpc~n"),
+    gen_server:cast(?MODULE, {assign, Key}),
     {{Type, _Dir}, Floor} = Key,
-    rpc:multicall(?MODULE, alter_order(Type, Floor, claimed)).
+    rpc:multicall(?MODULE, alter_order, [Type, Floor, claimed]).
 
 
 %%%%%%%%%

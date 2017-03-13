@@ -33,7 +33,7 @@ get_cost(ElevFloor, ElevDir, Key) ->
     TypePen = case Type of
                   int ->
                       ?INT_PENALTY;
-                  ext ->
+                  _Ext ->
                       ?EXT_PENALTY
               end,
     Node = node(),

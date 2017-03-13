@@ -27,7 +27,7 @@
 -record(state, {last_floor, button_list, elevator_type, port, callback_module,
                 top_floor = 3,
                 number_of_elevators = 1,
-                poll_period = 500,
+                poll_period = 50,
                 external_program = "elevator",
                 external_timeout = 3000,
                 simulator_ip = {127,0,0,1},
@@ -186,7 +186,7 @@ call_elevator(Msg, Port, Timeout) ->
     port_command(Port, encode(Msg)),
     receive
         {Port, {data, [Data]}} ->
-            io:format("Port got: ~p ~n", [Data]),
+            %io:format("Port got: ~p ~n", [Data]),
             decode(Data)
     %% Prevent the gen_server from hanging indefinitely in case the
     %% spawned process is taking too long processing the request.
