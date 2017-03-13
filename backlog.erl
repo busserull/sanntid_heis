@@ -6,7 +6,7 @@
 -define(ORTAB, ordertable).
 
 %%% API
--export([start/0, store_order/2, alter_order/3, list/0]).
+-export([start/0, store_order/2, alter_order/3, get_order/2, list/0]).
 %%% Helper functions
 -export([sync_orders/0, helper_sync/0, make_order_key/1]).
 %%% Server callback functions
@@ -30,6 +30,10 @@ store_order(Type, Floor) ->
 alter_order(Type, Floor, NewState) ->
     Key = {make_order_key(Type), Floor},
     rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
+
+get_order(ElevFloor, ElevDir) ->
+    Key = cost:optimal(ElevFloor, ElevDir, ets:first(?ORTAB)),
+    io:format("Best fit: ~p~n", [Key]).
 
 sync_orders() ->
     rpc:multicall(?MODULE, helper_sync, []).
