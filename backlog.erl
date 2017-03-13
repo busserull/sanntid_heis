@@ -29,6 +29,12 @@ store_order(Type, Floor) ->
     Key = make_order_key(Type),
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
     rpc:multicall(gen_server, call, [?MODULE, {store, Order}]).
+    %case lists:keyfind(size,1,ets:info(?ORTAB)) of
+    %	0 ->
+    %		assign_order(Order);
+    %	_Size ->
+    %		ok
+    %end.
 
 notify_state(ElevFloor, ElevDir, AtFloor) ->
     gen_server:call(?MODULE, {notify, {ElevFloor, ElevDir, AtFloor}}).
@@ -151,8 +157,11 @@ handle_cast({assign, Key}, {State, OldList}) ->
     NewList = case lists:member(Key, OldList) of
                   true ->
                       OldList;
+                  %false when length(OldList) == 0 ->
+                  %    environment_controller:goto_order(Key),
+                  %    OldList ++ [Key];
                   false ->
-                      OldList ++ [Key]
+                  	OldList ++ [Key]
               end,
     {noreply, {State, NewList}};
 
@@ -168,11 +177,11 @@ set_button_light(Key, State) ->
     Node = node(),
     case Type of
         ext ->
-            %elevator_driver:set_button_light(Dir, Floor, State);
-            io:format("Floor ~p, Dir ~p, ~p~n", [Floor, Dir, State]);
+            elevator_driver:set_button_light(Dir, Floor, State);
+            %io:format("Floor ~p, Dir ~p, ~p~n", [Floor, Dir, State]);
         int when Dir == Node ->
-            io:format("Floor ~p, internal, ~p~n", [Floor, State])
-            %elevator_driver:set_button_light(int, Floor, State)
+            %io:format("Floor ~p, internal, ~p~n", [Floor, State]),
+            elevator_driver:set_button_light(int, Floor, State)
     end.
 
 

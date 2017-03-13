@@ -63,7 +63,7 @@ handle_event({call, Caller}, get_state, _State, Data) ->
 %    [{state_timeout, Data#state.door_open_period, nothing}]};
 
 handle_event(cast, {button_pressed, {ButtonType, Floor}}, _State, _Data) ->
-    ok = test_backlog:distribute_order({ButtonType, Floor}),
+    backlog:store_order(ButtonType, Floor),
     keep_state_and_data;
 
 handle_event(cast,{set_button_light,{ButtonType,Floor},Value},_State,_Data) ->
@@ -78,12 +78,12 @@ handle_event(state_timeout, _arg, moving, Data) ->
     {next_state, stuck, Data};
 
 handle_event(cast, {reached_new_floor, the_void}, _State, Data) ->
-    backlog:notify(Data#state.last_floor, Data#state.dir, in_the_void),
+    backlog:notify_state(Data#state.last_floor, Data#state.dir, in_the_void),
     {keep_state, Data#state{pos = in_the_void}};
 
 handle_event(cast, {reached_new_floor, NewFloor}, _State, Data) ->
     elevator_driver:set_floor_indicator(NewFloor),
-    backlog:notify(NewFloor, Data#state.dir, at_floor),
+    backlog:notify_state(NewFloor, Data#state.dir, at_floor),
     NewData = Data#state{last_floor = NewFloor, pos = at_floor},
     deside_what_to_do(backlog:get_order(), NewData);
 
@@ -117,8 +117,8 @@ deside_what_to_do(Order, Data) ->
             enter_moving_state(OrderedFloor, LastFloor, Data)
     end.
 
-enter_door_open_state(Floor, Data) ->
-    test_backlog:finnish_order(Floor),
+enter_door_open_state(_Floor, Data) ->
+    %backlog:finnish_order(Floor),
     elevator_driver:set_motor_dir(stop),
     elevator_driver:set_door_light(on),
     {next_state, door_open, Data#state{dir = stop},
