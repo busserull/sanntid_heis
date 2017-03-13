@@ -20,7 +20,7 @@
 -spec store_order(up|down|int, Floor::integer()) -> ok.
 -spec alter_order(up|down|int, Floor::integer(), claimed|timeout|complete) -> ok.
 -spec notify_state(ElevFloor::integer(), up|down|stop, at_floor|in_the_void) -> ok.
--spec get_order() -> ok.
+-spec get_order() -> up|down|none|open_door.
 
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -109,15 +109,27 @@ handle_call({alter, Key, NewState}, _From, State) ->
     {reply, ok, State};
 
 % Get order
-handle_call(get_order, _From, {State, OrderList}) ->
-    % Maybe we want to sort this in cost
-    Key = case length(OrderList) of
-              0 ->
-                  {none, none};
-              _ ->
-                  hd(OrderList)
-          end,
-    {reply, element(2, Key), {State, OrderList}};
+handle_call(get_order, _From, {State, OldList}) ->
+    OrderList = cost:sort_on_distance(OldList, State),
+    {ElevFloor, _Dir, _AtFloor} = State,
+    OrderKey = hd(OrderList),
+    Diff = case OrderKey of
+                  [] ->
+                      none;
+                  _ ->
+                      element(2, OrderKey) - ElevFloor
+           end,
+    Command = case Diff of
+                  none ->
+                      none;
+                  Num when Num == 0 ->
+                      open_door;
+                  Num when Num > 0 ->
+                      up;
+                  Num when Num < 0 ->
+                      down
+              end,
+    {reply, Command, {State, OrderList}};
 
 % Update known elevator state
 handle_call({notify, NewState}, _From, {_OldState, OrderList}) ->
