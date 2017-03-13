@@ -89,6 +89,11 @@ handle_event(cast, {reached_new_floor, NewFloor}, _State, Data) ->
 
 handle_event(state_timeout, _arg, door_open, Data) ->
     elevator_driver:set_door_light(off),
+    backlog:notify_state(Data#state.last_floor, Data#state.dir, Data#state.pos),
+    deside_what_to_do(backlog:get_order(), Data);
+
+handle_event(state_timeout, _arg, idle, Data) ->
+    backlog:notify_state(Data#state.last_floor, Data#state.dir, Data#state.pos),
     deside_what_to_do(backlog:get_order(), Data);
         
 handle_event(cast, {goto_order, Order}, _State, Data) ->
@@ -126,7 +131,8 @@ enter_door_open_state(_Floor, Data) ->
 
 enter_idle_state(Data) ->
     elevator_driver:set_motor_dir(stop),
-    {next_state, idle, Data#state{dir = stop}}.
+    {next_state, idle, Data#state{dir = stop},
+    [{state_timeout, 1000, nothing}]}.
 
 enter_moving_state(OrderedFloor, LastFloor, Data) ->
     Dir = direction(OrderedFloor, LastFloor),
