@@ -6,7 +6,8 @@
 -define(ORTAB, ordertable).
 
 %%% API
--export([start/0, store_order/2, alter_order/3, notify_state/3, get_order/0, list/0]).
+-export([start/0, store_order/2, alter_order/3, notify_state/3,
+         assign_order/1, get_order/0, list/0]).
 %%% Helper functions
 -export([sync_orders/0, helper_sync/0, make_order_key/1]).
 %%% Server callback functions
@@ -29,16 +30,18 @@ store_order(Type, Floor) ->
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
     rpc:multicall(gen_server, call, [?MODULE, {store, Order}]).
 
-alter_order(Type, Floor, NewState) ->
-    Key = {make_order_key(Type), Floor},
-    rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
-
 notify_state(ElevFloor, ElevDir, AtFloor) ->
     gen_server:call(?MODULE, {notify, {ElevFloor, ElevDir, AtFloor}}).
 
 
+
+
+alter_order(Type, Floor, NewState) ->
+    Key = {make_order_key(Type), Floor},
+    rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
+
 get_order() ->
-    gen_server:call(?MODULE, {assign, ets:first(?ORTAB)}).
+    gen_server:call(?MODULE, get_order).
 %    {{Type, Dir}, Floor} = cost:optimal(ElevFloor, ElevDir, ets:first(?ORTAB)),
 %    Key = case Type of
 %              ext ->
@@ -48,13 +51,26 @@ get_order() ->
 %          end,
 %    io:format("Best fit: ~p~n", [Key]).
 
+assign_order(Key) ->
+    {Costs, _} = rpc:multicall(gen_server, call, [?MODULE, {get_cost, Key}]),
+    {_Cost, Node} = lists:min(Costs),
+    rpc:call(Node(), gen_server, cast, {assign, Key}),
+    {{Type, _Dir}, Floor} = Key,
+    rpc:multicall(?MODULE, alter_order(Type, Floor, claimed)).
+
+
+%%%%%%%%%
+
+
 %%% Server callbacks
 
 % Init
 init([]) ->
 	ets:new(?ORTAB, [set, named_table]),
     erlang:send_after(?TOUTCHINT, self(), timer),
-	{ok, {{undefined, stop, in_the_void}, []}}.
+	{ok, {{0, stop, at_floor}, []}}.
+    % Likely incorrect inital state, this only
+    % impacts the first time get_cost is called
 
 % Store order
 handle_call({store, Order}, _From, State) ->
@@ -83,19 +99,33 @@ handle_call({alter, Key, NewState}, _From, State) ->
     ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
     {reply, ok, State};
 
+% Get order
+handle_call(get_order, _From, {State, OrderList}) ->
+    % Maybe we want to sort this in cost
+    Key = case length(OrderList) of
+              0 ->
+                  {none, none};
+              _ ->
+                  element(1, OrderList)
+          end,
+    {reply, element(2, Key), {State, OrderList}};
+
 % Update known elevator state
 handle_call({notify, NewState}, _From, {_OldState, OrderList}) ->
     {reply, ok, {NewState, OrderList}};
 
-% Assign order
-handle_call({assign, Key}, _From, {State, OldList}) ->
-    NewList = case lists:member(Key, OldList) of
-                  true ->
-                      OldList;
-                  false ->
-                      OldList ++ [Key]
-              end,
-    {reply, ok, {State, NewList}};
+% Calculate cost for particular order
+handle_call({get_cost, Key}, _From, {State, OrderList}) ->
+    {Floor, Dir, AtFloor} = State,
+    Cost = case AtFloor of
+               in_the_void when Dir == up ->
+                   cost:get_cost(Floor + 1, Dir, Key);
+               in_the_void when Dir == down ->
+                   cost:get_cost(Floor - 1, Dir, Key);
+               at_floor ->
+                   cost:get_cost(Floor, Dir, Key)
+           end,
+    {reply, {Cost, node()}, {State, OrderList}};
 
 % List orders
 handle_call({list}, _From, State) ->
@@ -115,6 +145,16 @@ handle_info(timer, State) ->
 
 handle_info(_Msg, State) ->
 	{noreply, State}.
+
+% Be assigned order
+handle_cast({assign, Key}, {State, OldList}) ->
+    NewList = case lists:member(Key, OldList) of
+                  true ->
+                      OldList;
+                  false ->
+                      OldList ++ [Key]
+              end,
+    {noreply, {State, NewList}};
 
 handle_cast(_Msg, State) -> {noreply, State}.
 

@@ -9,7 +9,7 @@
 -define(DIFF_DIR_PENALTY, 1).
 -define(INITIAL_COST, 500).
 
--export([optimal/3]).
+-export([optimal/3, get_cost/3]).
 
 optimal(ElevFloor, ElevDir, Key) ->
     optimal(ElevFloor, ElevDir, Key, ?INITIAL_COST, none).
