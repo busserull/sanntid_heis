@@ -35,6 +35,8 @@ get_order(ElevatorState) ->
 	gen_server:call(?MODULE, {get_order, ElevatorState}).	
 
 handle_call({distribute_order, Order}, _From, State) ->
+	Order = {ButtonType, Floor},
+	elevator_driver:set_button_light(ButtonType, Floor, on),
 	case queue:is_empty(State#state.orders) of
 		true when State#state.current_order =:= empty ->
 			environment_controller:goto_order(Order),
@@ -44,10 +46,13 @@ handle_call({distribute_order, Order}, _From, State) ->
 	end;
 
 handle_call({finnish_order, _Order}, _From, State) ->
+	elevator_driver:set_button_light(int, Floor, off),
+    elevator_driver:set_button_light(up, Floor, off),
+    elevator_driver:set_button_light(down, Floor, off),
 	{reply, ok, State#state{current_order = empty}};
 
-handle_call({get_order, ElevatorState}, _From, State) ->
-	io:format("Elevator_state =~p~n",[ElevatorState]),
+handle_call({get_order, _ElevatorState}, _From, State) ->
+	%io:format("Elevator_state =~p~n",[ElevatorState]),
 	case State#state.current_order of
 		empty ->
 			case queue:out(State#state.orders) of

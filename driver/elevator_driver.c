@@ -1,30 +1,28 @@
-#include "elev_macOs.h"
+#include "elev.h"
 #include "elevator_driver.h"
 #include "erl_communication.h"
-#include <stdio.h>
-#include <assert.h>
+#include <stdint.h>
 
 int main() 
 {
   while (1) {
       byte command_buffer[MAX_COMMAND_SIZE];
       byte result[1];
+      int8_t dir;
       if(!(read_cmd(command_buffer) > 0))
       {
       elev_set_motor_direction(0);
       return 0;
       }
-      
-      
-      //assert(read_cmd(command_buffer) > 0 && "Brutal exit on external program");
       byte command = command_buffer[0];
       switch(command){
       case(INIT_COMMAND):
-          elev_init(command_buffer[1]);
+          elev_init();
           result[0] = 0;
           break;
       case(SET_MOTOR_DIRECTION_COMMAND):
-          elev_set_motor_direction(command_buffer[1]-1);
+          dir = command_buffer[1];
+          elev_set_motor_direction(dir);
           result[0] = 0;
           break;
       case(SET_DOOR_OPEN_LAMP_COMMAND):
@@ -57,9 +55,6 @@ int main()
           break;
       }
       write_cmd(result, 1);
-      
-
   }
-
   return 0;
 }

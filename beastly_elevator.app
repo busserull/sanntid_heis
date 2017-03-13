@@ -8,10 +8,10 @@
     stdlib
    ]},
   {env,
-  [{door_open_period, 2000},
+  [{door_open_period, 4000},
    {number_of_floors, 4},
    {number_of_elevators, 1},
-   {traveling_timeout, 5000}
+   {traveling_timeout, 3000}
   ]},
   {modules, 
   [environment_controller, 

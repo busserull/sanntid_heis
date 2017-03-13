@@ -28,7 +28,7 @@
                 top_floor = 3,
                 number_of_elevators = 1,
                 poll_period = 50,
-                external_program = "elevator_driver",
+                external_program = "elevator",
                 external_timeout = 3000,
                 simulator_ip = {127,0,0,1},
                 simulator_port = 15657,
@@ -82,12 +82,13 @@ init({Module, Configs}) when is_list(Configs) ->
     init_continue(NewState).
 
 init_continue(#state{elevator_type = elevator} = State) ->
-    PrivDir = code:priv_dir(elevator_driver),
+    PrivDir = "driver",
     ExtProg = State#state.external_program,
     ExtProgWithPath = filename:join([PrivDir, ExtProg]),
     Port = open_port({spawn_executable, ExtProgWithPath}, [{packet, 2}]),
-    {reply, 0} = 
-    call_elevator({elev_init, elevator}, Port, State#state.external_timeout),
+    io:format("Port = ~p ~n", [Port]),
+    0 = call_elevator({elev_init, elevator}, Port, State#state.external_timeout),
+    io:format("Elevator initialized~n"),
     init_finish(State#state{port = Port});
 
 init_continue(#state{elevator_type = simulator} = State) ->
@@ -233,5 +234,3 @@ decode(<<7,0,_Floor,0>>) -> the_void;
 decode(<<_Cmd,Val,0,0>>) -> Val;
 decode(255) -> the_void;
 decode(Value) -> Value.
-
-config(elevator_type) -> elevator_type.
