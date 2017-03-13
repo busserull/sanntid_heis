@@ -6,7 +6,7 @@
 -define(ORTAB, ordertable).
 
 %%% API
--export([start/0, store_order/2, alter_order/3, notify_state/3,
+-export([start/0, store_order/2, alter_order/2, notify_state/3,
          get_order/0, list/0]).
 %%% Helper functions
 -export([sync_orders/0, helper_sync/0, make_order_key/1]).
@@ -18,7 +18,7 @@
 
 -spec start() -> ok.
 -spec store_order(up|down|int, Floor::integer()) -> ok.
--spec alter_order(up|down|int, Floor::integer(), claimed|timeout|complete) -> ok.
+-spec alter_order(Key::tuple(), claimed|timeout|complete) -> ok.
 -spec notify_state(ElevFloor::integer(), up|down|stop, at_floor|in_the_void) -> ok.
 -spec get_order() -> up|down|none|open_door.
 
@@ -33,8 +33,7 @@ store_order(Type, Floor) ->
 notify_state(ElevFloor, ElevDir, AtFloor) ->
     gen_server:call(?MODULE, {notify, {ElevFloor, ElevDir, AtFloor}}).
 
-alter_order(Type, Floor, NewState) ->
-    Key = {make_order_key(Type), Floor},
+alter_order(Key, NewState) ->
     rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
 
 get_order() ->
@@ -92,6 +91,12 @@ handle_call(get_order, _From, {State, OldOrder}) ->
                        _ ->
                            OldOrder
                    end,
+    case CurrentOrder of
+        OldOrder ->
+            ok;
+        _ ->
+            alter_order(CurrentOrder, claimed)
+    end,
     %
     Diff = case CurrentOrder of
                none ->
@@ -104,6 +109,7 @@ handle_call(get_order, _From, {State, OldOrder}) ->
                               none ->
                                   {none, none};
                               Num when Num == 0 ->
+                                  % Do some clearing
                                   {none, open_door};
                               Num when Num > 0 ->
                                   {CurrentOrder, up};
@@ -175,7 +181,7 @@ check_for_timeout([[Type, Floor, Timestamp]|Tail]) ->
 	Now = erlang:monotonic_time(),
 	Elapsed = erlang:convert_time_unit(Now - Timestamp, native, millisecond),
 	if Elapsed >= ?ORTOUT ->
-           alter_order(Type, Floor, timeout);
+           alter_order({{ext, Type}, Floor}, timeout);
 	   true ->
 		   ok
 	end,
