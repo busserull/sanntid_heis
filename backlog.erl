@@ -32,6 +32,8 @@ alter_order(Type, Floor, NewState) ->
     Key = {make_order_key(Type), Floor},
     rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
 
+
+
 get_order(ElevFloor, ElevDir) ->
     {{Type, Dir}, Floor} = cost:optimal(ElevFloor, ElevDir, ets:first(?ORTAB)),
     Key = case Type of
@@ -42,24 +44,26 @@ get_order(ElevFloor, ElevDir) ->
           end,
     io:format("Best fit: ~p~n", [Key]).
 
+%%%%%%%
+
+
 %%% Server callbacks
 
 % Init
 init([]) ->
 	ets:new(?ORTAB, [set, named_table]),
     erlang:send_after(?TOUTCHINT, self(), timer),
-	State = 0,
-	{ok, State}.
+	{ok, {{undefined, stop, in_the_void}, []}}.
 
 % Store order
-handle_call({store, Order}, _From, _State) ->
+handle_call({store, Order}, _From, State) ->
     ets:insert(?ORTAB, Order),
     {Key, _Status, _Timestamp} = Order,
     set_button_light(Key, on),
-    {reply, ok, ets:info(?ORTAB, size)};
+    {reply, ok, State};
 
 % Alter order
-handle_call({alter, Key, complete}, _From, _State) ->
+handle_call({alter, Key, complete}, _From, State) ->
     {{Type, Node}, Floor} = Key,
     ets:delete(?ORTAB, {{ext, up}, Floor}),
     ets:delete(?ORTAB, {{ext, down}, Floor}),
@@ -72,7 +76,7 @@ handle_call({alter, Key, complete}, _From, _State) ->
         _ ->
             ok
     end,
-    {reply, ok, ets:info(?ORTAB, size)};
+    {reply, ok, State};
 handle_call({alter, Key, NewState}, _From, State) ->
     Now = erlang:monotonic_time(),
     ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
