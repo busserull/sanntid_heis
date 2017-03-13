@@ -110,6 +110,7 @@ handle_call({alter, Key, NewState}, _From, State) ->
 
 % Get order
 handle_call(get_order, _From, {State, OldList}) ->
+    io:format("get_order: (~p)~n", [State]),
     OrderList = OldList,
     {ElevFloor, _Dir, _AtFloor} = State,
     Diff = case OrderList of
@@ -128,6 +129,7 @@ handle_call(get_order, _From, {State, OldList}) ->
                   Num when Num < 0 ->
                       down
               end,
+    io:format("Returning ~p~n", [Command]),
     {reply, Command, {State, OrderList}};
 
 % Update known elevator state
