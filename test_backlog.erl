@@ -34,8 +34,7 @@ finnish_order(Order) ->
 get_order(ElevatorState) ->
 	gen_server:call(?MODULE, {get_order, ElevatorState}).	
 
-handle_call({distribute_order, Order}, _From, State) ->
-	Order = {ButtonType, Floor},
+handle_call({distribute_order, Order = {ButtonType, Floor}}, _From, State) ->
 	elevator_driver:set_button_light(ButtonType, Floor, on),
 	case queue:is_empty(State#state.orders) of
 		true when State#state.current_order =:= empty ->
@@ -45,7 +44,7 @@ handle_call({distribute_order, Order}, _From, State) ->
 			{reply,ok,State#state{orders = queue:in(Order, State#state.orders)}}
 	end;
 
-handle_call({finnish_order, _Order}, _From, State) ->
+handle_call({finnish_order, {_ButtonType, Floor}}, _From, State) ->
 	elevator_driver:set_button_light(int, Floor, off),
     elevator_driver:set_button_light(up, Floor, off),
     elevator_driver:set_button_light(down, Floor, off),

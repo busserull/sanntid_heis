@@ -53,7 +53,7 @@ init([]) ->
     {ok, {idle}, Data}.
 
 handle_event({call, Caller}, get_state, _State, Data) ->
-    gen_statem:reply(Caller, 
+    gen_statem:reply(Caller,
         {Data#state.last_floor, Data#state.dir, Data#state.pos}),
     keep_state_and_data;
 
@@ -75,7 +75,7 @@ handle_event(state_timeout, _arg, moving, Data) ->
     %Give away external orders, give them the time-out?
     %if ordered_dir =/= int ->
     %Data#state{ordered_floor = empty}
-    {next_state, stuck, Data}; 
+    {next_state, stuck, Data};
 
 handle_event(cast, {reached_new_floor, the_void}, _State, Data) ->
     backlog:notify(Data#state.last_floor, Data#state.dir, in_the_void),
@@ -111,9 +111,9 @@ deside_what_to_do(Order, Data) ->
     case Order of
         open_door ->
             enter_door_open_state(LastFloor, Data);
-        empty ->
+        none ->
             enter_idle_state(Data);
-        {_Dir, OrderedFloor} ->
+        OrderedFloor ->
             enter_moving_state(OrderedFloor, LastFloor, Data)
     end.
 
@@ -126,7 +126,7 @@ enter_door_open_state(Floor, Data) ->
 
 enter_idle_state(Data) ->
     elevator_driver:set_motor_dir(stop),
-    {next_state, idle, Data#state{dir = stop}};
+    {next_state, idle, Data#state{dir = stop}}.
 
 enter_moving_state(OrderedFloor, LastFloor, Data) ->
     Dir = direction(OrderedFloor, LastFloor),

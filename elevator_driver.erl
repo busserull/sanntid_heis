@@ -75,9 +75,8 @@ init({Module, Configs}) when is_list(Configs) ->
         end
     end,    
     State = lists:foldl(Init_state, #state{}, Configs),
-    TopFloor = State#state.top_floor,
     NewState = State#state{
-    button_list = combine_lists([up, down, int], lists:seq(0,TopFloor), 0),
+    button_list = create_button_list(State#state.top_floor),
     callback_module = Module},
     init_continue(NewState).
 
@@ -174,13 +173,14 @@ terminate(Reason, {socket, Socket}) ->
     gen_tcp:close(Socket),
     io:format("done~n").
 
-
 %%%----------------------------------------------------------------------
 %%% Internal functions
 %%%----------------------------------------------------------------------
 
-combine_lists(L1, L2, Value) ->
-    [{{X, Y}, Value} || X <- L1, Y <- L2].
+create_button_list(TopFloor) ->
+    [{{Type, Floor},0} || Type <- [int, up, down], Floor <- lists:seq(0, TopFloor), 
+    not(Floor =:= 0 andalso Type =:= down) and 
+    not(Floor =:= TopFloor andalso Type =:= up)].
 
 call_elevator(Msg, Port, Timeout) ->
     port_command(Port, encode(Msg)),
