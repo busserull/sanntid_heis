@@ -181,7 +181,8 @@ set_button_light(Key, State) ->
             %io:format("Floor ~p, Dir ~p, ~p~n", [Floor, Dir, State]);
         int when Dir == Node ->
             %io:format("Floor ~p, internal, ~p~n", [Floor, State]),
-            elevator_driver:set_button_light(int, Floor, State)
+            elevator_driver:set_button_light(int, Floor, State);
+        _ -> ok
     end.
 
 
