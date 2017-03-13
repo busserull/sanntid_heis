@@ -33,7 +33,13 @@ alter_order(Type, Floor, NewState) ->
     rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
 
 get_order(ElevFloor, ElevDir) ->
-    Key = cost:optimal(ElevFloor, ElevDir, ets:first(?ORTAB)),
+    {{Type, Dir}, Floor} = cost:optimal(ElevFloor, ElevDir, ets:first(?ORTAB)),
+    Key = case Type of
+              ext ->
+                  {Dir, Floor};
+              int ->
+                  {int, Floor}
+          end,
     io:format("Best fit: ~p~n", [Key]).
 
 %%% Server callbacks
