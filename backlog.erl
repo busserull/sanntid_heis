@@ -1,25 +1,23 @@
 -module(backlog).
 -behavior(gen_server).
 
-% Names of ETS order table
+-define(ORTOUT, 5000). % Order timeout (ms)
+-define(TOUTCHINT, 1000). % Timeout check interval (ms)
 -define(ORTAB, ordertable).
-% Time before a claimed order times out in ms
--define(ORTOUT, 5000).
-% Order timeout check interval in ms
--define(TOUTCHINT, 1000).
 
--export([start/0, store_order/2, alter_order/3, claim_order/2, list/0, sync_orders/0]).
--export([helper_sync/0, make_order_key/1]).
-
--export([init/1, handle_call/3, handle_cast/2,
-		handle_info/2, terminate/2, code_change/3]).
+%%% API
+-export([start/0, store_order/2, alter_order/3, list/0]).
+%%% Helper functions
+-export([sync_orders/0, helper_sync/0, make_order_key/1]).
+%%% Server callback functions
+-export([init/1, handle_call/3, handle_info/2,
+		handle_cast/2, terminate/2, code_change/3]).
 
 %%% Backlog interface
 
 -spec start() -> ok.
 -spec store_order(up|down|int, Floor::integer()) -> ok.
 -spec alter_order(up|down|int, Floor::integer(), claimed|timeout|complete) -> ok.
--spec claim_order(up|down|int, Floor::integer()) -> ok.
 
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -33,9 +31,6 @@ alter_order(Type, Floor, NewState) ->
     Key = {make_order_key(Type), Floor},
     rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
 
-claim_order(Type, Floor) ->
-    gen_server:call(?MODULE, {claim, {Type, Floor}}).
-
 sync_orders() ->
     rpc:multicall(?MODULE, helper_sync, []).
 
@@ -47,8 +42,8 @@ list() ->
 
 % Init
 init([]) ->
-	erlang:send_after(?TOUTCHINT, self(), {timer}),
 	ets:new(?ORTAB, [set, named_table]),
+    erlang:send_after(?TOUTCHINT, self(), timer),
 	State = 0,
 	{ok, State}.
 
@@ -74,40 +69,27 @@ handle_call({alter, Key, NewState}, _From, State) ->
     ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
     {reply, ok, State};
 
-handle_call(sync, _From, State) ->
-    io:format("Syncing...~n"),
-    helper_sync(),
-    %helper_sync(ets:first(?ORTAB)),
-%    gen_server:call(?MODULE, {sync, ets:first(?ORTAB)}),
-    {reply, ok, State};
-
-handle_call({claim, {Type, Floor, IP}}, _From, State) ->
-	Now = erlang:monotonic_time(),
-	ets:update_element(?ORTAB,{Type, Floor},[{2,IP},{3,claimed},{4,Now}]),
-	{reply, ok, State};
-
+% List orders
 handle_call({list}, _From, State) ->
 	io:format("Number of elements = ~p~n",[State]),
 	list_orders(ets:first(?ORTAB)),
 	{reply, ok, State}.
 
-handle_cast(_Msg, State) ->
-	{noreply, State}.
 
 % Timeout
-handle_info({timer}, State) ->
-	erlang:send_after(?TOUTCHINT, self(), {timer}),
+handle_info(timer, State) ->
+	erlang:send_after(?TOUTCHINT, self(), timer),
     check_for_timeout(ets:match(?ORTAB, {{{ext, '$1'}, '$2'}, claimed, '$3'})),
 	{noreply, State};
 
 handle_info(_Msg, State) ->
 	{noreply, State}.
 
-terminate(_Reason, _State) ->
-	ok.
+handle_cast(_Msg, State) -> {noreply, State}.
 
-code_change(_OldVsn, State, _Extra) ->
-	{ok, State}.
+terminate(_Reason, _State) -> ok.
+
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%% Helper functions
 
