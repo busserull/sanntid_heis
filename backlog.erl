@@ -34,7 +34,8 @@ notify_state(ElevFloor, ElevDir, AtFloor) ->
     gen_server:call(?MODULE, {notify, {ElevFloor, ElevDir, AtFloor}}).
 
 alter_order(Key, NewState) ->
-    rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
+    rpc:multicall(gen_server, cast, [?MODULE, {alter, Key, NewState}]).
+    %rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
 
 get_order() ->
     gen_server:call(?MODULE, get_order).
@@ -58,24 +59,24 @@ handle_call({store, Order}, _From, State) ->
     {reply, ok, State};
 
 % Alter order
-handle_call({alter, Key, complete}, _From, State) ->
-    {{Type, Node}, Floor} = Key,
-    ets:delete(?ORTAB, {{ext, up}, Floor}),
-    ets:delete(?ORTAB, {{ext, down}, Floor}),
-    set_button_light({{ext, up}, Floor}, off),
-    set_button_light({{ext, down}, Floor}, off),
-    case Type of
-        int ->
-            ets:delete(?ORTAB, {{int, Node}, Floor}),
-            set_button_light({{int, Node}, Floor}, off);
-        _ ->
-            ok
-    end,
-    {reply, ok, State};
-handle_call({alter, Key, NewState}, _From, State) ->
-    Now = erlang:monotonic_time(),
-    ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
-    {reply, ok, State};
+%handle_call({alter, Key, complete}, _From, State) ->
+%    {{Type, Node}, Floor} = Key,
+%    ets:delete(?ORTAB, {{ext, up}, Floor}),
+%    ets:delete(?ORTAB, {{ext, down}, Floor}),
+%    set_button_light({{ext, up}, Floor}, off),
+%    set_button_light({{ext, down}, Floor}, off),
+%    case Type of
+%        int ->
+%            ets:delete(?ORTAB, {{int, Node}, Floor}),
+%            set_button_light({{int, Node}, Floor}, off);
+%        _ ->
+%            ok
+%    end,
+%    {reply, ok, State};
+%handle_call({alter, Key, NewState}, _From, State) ->
+%    Now = erlang:monotonic_time(),
+%    ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
+%    {reply, ok, State};
 
 % Get order %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Updates State
 handle_call(get_order, _From, {State, OldOrder}) ->
@@ -141,6 +142,26 @@ handle_info(timer, State) ->
 
 handle_info(_Msg, State) ->
 	{noreply, State}.
+
+% Alter order
+handle_cast({alter, Key, complete}, State) ->
+    {{Type, Node}, Floor} = Key,
+    ets:delete(?ORTAB, {{ext, up}, Floor}),
+    ets:delete(?ORTAB, {{ext, down}, Floor}),
+    set_button_light({{ext, up}, Floor}, off),
+    set_button_light({{ext, down}, Floor}, off),
+    case Type of
+        int ->
+            ets:delete(?ORTAB, {{int, Node}, Floor}),
+            set_button_light({{int, Node}, Floor}, off);
+        _ ->
+            ok
+    end,
+    {noreply, State};
+handle_cast({alter, Key, NewState}, State) ->
+    Now = erlang:monotonic_time(),
+    ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
+    {noreply, State};
 
 handle_cast(_Msg, State) -> {noreply, State}.
 
