@@ -9,7 +9,7 @@
    ]},
   {env,
   [{door_open_period, 4000},
-   {number_of_floors, 4},
+   {number_of_floors, 4}
   ]},
   {modules,
   [elevator_controller,
