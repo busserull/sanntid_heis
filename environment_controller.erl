@@ -48,7 +48,8 @@ init([]) ->
             door_open_period = get_env(door_open_period),
             traveling_timeout = get_env(traveling_timeout)},
     io:format("Environment controller initialised ~n"),
-    enter_idle_state(Data).
+    elevator_driver:set_motor_dir(stop),
+    {ok, {idle}, Data#state{dir = stop}, [{state_timeout, 1000, nothing}]}.
 
 handle_event({call, Caller}, get_state, _State, Data) ->
     gen_statem:reply(Caller,
