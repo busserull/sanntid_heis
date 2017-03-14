@@ -9,14 +9,14 @@
 -export([event_button_pressed/1, event_reached_new_floor/1]).
 
 %%%Backlog 
--export([goto_order/1, set_button_light/2, get_state/0]).
+-export([set_button_light/2, get_state/0]).
 
 %%%Gen_statem callbacks
 -export([init/1,callback_mode/0,terminate/3,code_change/4]).
 -export([handle_event/4]).
 
 %%%State data
--record(state, {last_floor,dir,pos, top_floor, door_open_period, 
+-record(state, {last_floor, dir, pos, top_floor, door_open_period, 
     traveling_timeout}).
 
 %%%supervisor
@@ -32,8 +32,6 @@ event_reached_new_floor(Floor) ->
     gen_statem:cast(?MODULE, {reached_new_floor, Floor}).
 
 %%%Backlog 
-goto_order(Order) ->
-    gen_statem:cast(?MODULE, {goto_order, Order}).
 set_button_light(Order,Value) ->
     gen_statem:cast(?MODULE, {set_button_light, Order, Value}).
 get_state() ->
@@ -50,7 +48,7 @@ init([]) ->
             door_open_period = get_env(door_open_period),
             traveling_timeout = get_env(traveling_timeout)},
     io:format("Environment controller initialised ~n"),
-    {ok, {idle}, Data}.
+    enter_idle_state(Data).
 
 handle_event({call, Caller}, get_state, _State, Data) ->
     gen_statem:reply(Caller,
@@ -78,27 +76,20 @@ handle_event(state_timeout, _arg, moving, Data) ->
     {next_state, stuck, Data};
 
 handle_event(cast, {reached_new_floor, the_void}, _State, Data) ->
-    backlog:notify_state(Data#state.last_floor, Data#state.dir, in_the_void),
     {keep_state, Data#state{pos = in_the_void}};
 
 handle_event(cast, {reached_new_floor, NewFloor}, _State, Data) ->
     elevator_driver:set_floor_indicator(NewFloor),
-    backlog:notify_state(NewFloor, Data#state.dir, at_floor),
     NewData = Data#state{last_floor = NewFloor, pos = at_floor},
-    deside_what_to_do(backlog:get_order(), NewData);
+    deside_what_to_do(backlog:get_order(NewFloor, Data#state.dir, at_floor), NewData);
 
 handle_event(state_timeout, _arg, door_open, Data) ->
     elevator_driver:set_door_light(off),
-    backlog:notify_state(Data#state.last_floor, Data#state.dir, Data#state.pos),
-    deside_what_to_do(backlog:get_order(), Data);
+    deside_what_to_do(backlog:get_order(Data#state.last_floor, Data#state.dir, Data#state.pos), Data);
 
 handle_event(state_timeout, _arg, idle, Data) ->
-    backlog:notify_state(Data#state.last_floor, Data#state.dir, Data#state.pos),
-    deside_what_to_do(backlog:get_order(), Data);
-        
-handle_event(cast, {goto_order, Order}, _State, Data) ->
-    deside_what_to_do(Order, Data).
-    
+    deside_what_to_do(backlog:get_order(Data#state.last_floor, Data#state.dir, Data#state.pos), Data).
+
 terminate(_Reason, _State, _Data) ->
     io:format("Terminating ~p!~n",[?MODULE]),
     io:format("done~n"),
