@@ -200,6 +200,6 @@ helper_sync() ->
 helper_sync('$end_of_table') ->
     ok;
 helper_sync(Key) ->
-    Order = ets:lookup(?ORTAB, Key),
+    [Order] = ets:lookup(?ORTAB, Key),
     rpc:multicall(gen_server, call, [?MODULE, {store, Order}]),
     helper_sync(ets:next(?ORTAB, Key)).
