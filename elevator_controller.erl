@@ -42,7 +42,6 @@ callback_mode() ->
     handle_event_function.
 
 init([]) ->
-    process_flag(trap_exit, true),
     Data = #state{
             top_floor = get_env(number_of_floors) -1 ,
             door_open_period = get_env(door_open_period)},
@@ -53,7 +52,7 @@ init([]) ->
         Floor ->
             elevator_driver:set_motor_dir(stop),
             {ok, idle, Data#state{dir = stop, last_floor = Floor, pos = at_floor}, 
-            [{state_timeout, 1000, nothing}]}
+            [{state_timeout, 1000, look_for_order}]}
     end.
 
 handle_event({call, Caller}, get_state, _State, Data) ->
@@ -77,16 +76,14 @@ handle_event(cast, {reached_new_floor, NewFloor}, _State, Data) ->
     NewData = Data#state{last_floor = NewFloor, pos = at_floor},
     deside_what_to_do(?BACKLOG:get_order(NewFloor, Data#state.dir, at_floor), NewData);
 
-handle_event(state_timeout, _arg, door_open, Data) ->
+handle_event(state_timeout, close_door, door_open, Data) ->
     elevator_driver:set_door_light(off),
     deside_what_to_do(?BACKLOG:get_order(Data#state.last_floor, Data#state.dir, Data#state.pos), Data);
 
-handle_event(state_timeout, _arg, idle, Data) ->
+handle_event(state_timeout, look_for_order, idle, Data) ->
     deside_what_to_do(?BACKLOG:get_order(Data#state.last_floor, Data#state.dir, Data#state.pos), Data).
 
 terminate(_Reason, _State, _Data) ->
-    io:format("Terminating ~p!~n",[?MODULE]),
-    io:format("done~n"),
     ok.
 code_change(_Vsn, State, Data, _Extra) ->
     io:format("~n~nPerforming Code change in ~p!~n~n~n",[?MODULE]),
@@ -110,12 +107,12 @@ enter_door_open_state(Data) ->
     elevator_driver:set_motor_dir(stop),
     elevator_driver:set_door_light(on),
     {next_state, door_open, Data#state{dir = stop},
-        [{state_timeout, Data#state.door_open_period, nothing}]}.
+        [{state_timeout, Data#state.door_open_period, close_door}]}.
 
 enter_idle_state(Data) ->
     elevator_driver:set_motor_dir(stop),
     {next_state, idle, Data#state{dir = stop},
-    [{state_timeout, 1000, nothing}]}.
+    [{state_timeout, 1000, look_for_order}]}.
 
 enter_moving_state(Dir, Data) ->
     elevator_driver:set_motor_dir(Dir),

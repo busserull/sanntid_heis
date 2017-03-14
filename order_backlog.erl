@@ -53,21 +53,27 @@ handle_call({store, Order}, _From, State) ->
 
 % Get order
 handle_call({get_order, ElevFloor, Dir, AtFloor}, _From, OldOrder) ->
+    RealativeFloor = case AtFloor of
+      at_floor ->
+        ElevFloor;
+      in_the_void when Dir == up ->
+        ElevFloor + 1;
+      in_the_void when Dir == down ->
+        ElevFloor - 1
+    end,
     CurrentOrder = case OldOrder of
-                       none when AtFloor == at_floor ->
-                           cost:optimal(ElevFloor, Dir, ets:first(?ORTAB));
-                       none when AtFloor == in_the_void andalso Dir == up ->
-                           cost:optimal(ElevFloor + 1, Dir, ets:first(?ORTAB));
-                       none when AtFloor == in_the_void andalso Dir == down ->
-                           cost:optiaml(ElevFloor - 1, Dir, ets:first(?ORTAB));
-                       _ ->
-                           OldOrder
-                   end,
+      none ->
+        cost:optimal(RealativeFloor, Dir, ets:first(?ORTAB));
+      _Order ->
+        cost:optimal(RealativeFloor, Dir, ets:first(?ORTAB), OldOrder)
+    end,
+    
     case CurrentOrder of
         OldOrder ->
             ok;
         _ ->
-            alter_order(CurrentOrder, claimed)
+            alter_order(CurrentOrder, claimed),
+            alter_order(OldOrder, queued)
     end,
     Diff = case CurrentOrder of
                none ->

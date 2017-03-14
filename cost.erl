@@ -6,17 +6,29 @@
 -define(TIMEOUT_PENALTY, 0).
 -define(QUEUED_PENALTY, 1).
 -define(SAME_DIR_PENALTY, 0).
--define(DIFF_DIR_PENALTY, 1).
+-define(DIFF_DIR_PENALTY, 3).
 -define(INITIAL_COST, 500).
 
--export([optimal/3]).
+-export([optimal/3, optimal/4]).
 
-optimal(ElevFloor, ElevDir, Key) ->
-    optimal(ElevFloor, ElevDir, Key, ?INITIAL_COST, none).
+optimal(ElevFloor, ElevDir, Key) -> 
+    {ProposedOrder, _Cost} = 
+    optimal(ElevFloor, ElevDir, Key, ?INITIAL_COST, none),
+    ProposedOrder.
+
+optimal(ElevFloor, ElevDir, Key, OldOrder) ->
+    {ProposedOrder, Cost} = 
+    optimal(ElevFloor, ElevDir, Key, ?INITIAL_COST, none),
+
+    case  get_cost(ElevFloor, ElevDir, OldOrder) > Cost of
+      true -> ProposedOrder;
+      false -> OldOrder
+    end.
+
 
 %%% Helper functions
-optimal(_ElevFloor, _ElevDir, '$end_of_table', _BestCost, Best) ->
-    Best;
+optimal(_ElevFloor, _ElevDir, '$end_of_table', BestCost, Best) ->
+    {Best, BestCost};
 
 optimal(ElevFloor, ElevDir, Key, BestCost, Best) ->
     [{{{Type, Dir}, _Floor}, Status, _Time}] = ets:lookup(?ORTAB, Key),
@@ -77,7 +89,10 @@ get_cost(ElevFloor, ElevDir, Key) ->
                     queued ->
                         ?QUEUED_PENALTY;
                     timeout ->
-                        ?TIMEOUT_PENALTY
+                        ?TIMEOUT_PENALTY;
+                    claimed -> 
+                        % Only used when deciding if one should change order
+                        ?QUEUED_PENALTY
                 end,
     TotalCost = TypePen + DirPen + FloorPen + StatusPen,
     TotalCost.

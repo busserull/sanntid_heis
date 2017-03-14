@@ -112,12 +112,17 @@ init_finish(State) ->
     {ok, State}.
 
 handle_call(Msg, _From, #state{port=Port, elevator_type = elevator} = State) ->
-    0 = call_elevator(Msg, Port, State#state.external_timeout),
-    {reply, ok, State};
+    Reply = call_elevator(Msg, Port, State#state.external_timeout),
+    {reply, Reply, State};
+
+handle_call({elev_get_floor_sensor_signal} = Msg, _From, 
+    #state{elevator_type = simulator} = State) ->
+    #state{simulator_socket = Socket, external_timeout = Timeout} = State,
+    {reply, call_simulator(Msg, Socket, Timeout), State};
 
 handle_call(Msg, _From, #state{elevator_type = simulator} = State) ->
     ok = gen_tcp:send(State#state.simulator_socket, encode(Msg)),
-    {reply, ok, State}.
+    {reply, 0, State}.
 
 handle_info(time_to_poll, State) ->
     #state{external_timeout = Timeout, simulator_socket = Socket, port = Port,
@@ -162,20 +167,13 @@ handle_cast(_Msg, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-terminate({port_terminated, Reason}, _State) ->
-    io:format("Terminating ~p, because port terminated for reason: ~p ~n",
-        [?MODULE, Reason]),
-    io:format("done~n");
-terminate(Reason, {port, Port}) ->
-    io:format("Terminating ~p, because: ~p!~n",[?MODULE, Reason]),
-    io:format("    Closing port~n"),
-    port_close(Port),
-    io:format("done~n");
-terminate(Reason, {socket, Socket}) ->
-    io:format("Terminating ~p, because: ~p!~n",[?MODULE, Reason]),
-    io:format("    Closing socket~n"),
-    gen_tcp:close(Socket),
-    io:format("done~n").
+terminate({port_terminated, _Reason}, _State) -> ok;
+terminate(_Reason, {port, Port}) ->
+    port_close(Port);
+terminate(_Reason, {socket, Socket}) ->
+    gen_tcp:close(Socket);
+terminate(_Reason, _State) -> ok.
+
 
 %%%----------------------------------------------------------------------
 %%% Internal functions

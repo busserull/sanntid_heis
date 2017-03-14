@@ -28,17 +28,17 @@ start_link() ->
 
 init([]) ->
     {ok, { {one_for_all, 0, 10},
-    [{elevator_driver,
+    [{order_backlog,
+        {order_backlog, start, []},
+        permanent, 5000, worker, [order_backlog]},
+
+    {elevator_driver,
         {elevator_controller, start_elevator, []},
         permanent, 5000, worker, [elevator_driver]},
 
      {elevator_controller,
     	{elevator_controller, start_link, []},
     	permanent, 5000, worker, [elevator_controller]},
-
-     {order_backlog,
-        {order_backlog, start, []},
-        permanent, 5000, worker, [order_backlog]},
 
      {peer_finder,
         {peer_finder, start, []},
