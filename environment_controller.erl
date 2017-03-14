@@ -1,6 +1,5 @@
 -module(environment_controller).
 -behaviour (gen_statem).
--behaviour(elevator_driver).
 
 %%%supervisor 
 -export([start_link/0, start_elevator/0]).
