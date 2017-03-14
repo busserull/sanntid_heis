@@ -19,7 +19,7 @@ optimal(_ElevFloor, _ElevDir, '$end_of_table', _BestCost, Best) ->
     Best;
 
 optimal(ElevFloor, ElevDir, Key, BestCost, Best) ->
-    {{{Type, Dir}, _Floor}, Status, _Time} = ets:lookup(?ORTAB, Key),
+    [{{{Type, Dir}, _Floor}, Status, _Time}] = ets:lookup(?ORTAB, Key),
     Node = node(),
     LegalType = case Type of
                     int when Node == Dir ->
