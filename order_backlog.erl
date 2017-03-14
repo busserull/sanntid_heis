@@ -1,4 +1,4 @@
--module(backlog).
+-module(order_backlog).
 -behavior(gen_server).
 
 -define(ORTOUT, 5000). % Order timeout (ms)

@@ -1,11 +1,11 @@
--module(dist).
+-module(peer_finder).
 -behavior(gen_server).
 
 -define(ELEVNAME, "beastly_beast@").
 -define(COOKIE, 'beistheis').
 -define(PEER_DISC_PORT, 23600).
 -define(BROADCAST_INTERVAL, 1000).
--define(BACKLOG_MODULE, backlog).
+-define(BACKLOG_MODULE, order_backlog).
 
 %% public API
 -export([start/0]).

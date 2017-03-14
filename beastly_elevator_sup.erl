@@ -26,26 +26,21 @@ start_link() ->
 %% Supervisor callbacks
 %%====================================================================
 
-%% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
-    {ok, { {one_for_all, 0, 2}, % not restart more than 3 times within 60 sek
+    {ok, { {one_for_all, 1, 10},
     [{elevator_driver,
         {environment_controller, start_elevator, []},
         permanent, 5000, worker, [elevator_driver]},
 
-     {environment_controller,  % worker ID
-    	{environment_controller, start_link, []}, % mod, startFun, [arg]
-    	permanent, 5000, worker, [environment_controller]}, 
-    	%restart strat, shutdown timer, type, [module]
+     {elevator_controller,
+    	{elevator_controller, start_link, []},
+    	permanent, 5000, worker, [elevator_controller]},
 
-     {backlog,
-        {backlog, start, []},
-        permanent, 5000, worker, [backlog]},
-     {dist,
-        {dist, start, []},
-        permanent, 5000, worker, [dist]}
+     {order_backlog,
+        {order_backlog, start, []},
+        permanent, 5000, worker, [order_backlog]},
+
+     {peer_finder,
+        {peer_finder, start, []},
+        permanent, 5000, worker, [peer_finder]}
     ]} }.
-
-%%====================================================================
-%% Internal functions
-%%====================================================================

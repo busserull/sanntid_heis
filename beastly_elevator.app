@@ -10,14 +10,14 @@
   {env,
   [{door_open_period, 4000},
    {number_of_floors, 4},
-   {number_of_elevators, 1},
-   {traveling_timeout, 3000}
   ]},
-  {modules, 
-  [environment_controller, 
-   beastly_elevator_sup, 
+  {modules,
+  [elevator_controller,
+   beastly_elevator_sup,
    beastly_elevator_app,
-   test_backlog
+   order_backlog,
+   peer_finder,
+   cost
   ]},
   {maintainers, []},
   {licenses, []},
