@@ -7,9 +7,8 @@
 
 %%% API
 -export([start/0, store_order/2, get_order/3]).
--export([list/0]).
 %%% Helper functions
--export([sync_orders/0, helper_sync/0, make_order_key/1, alter_order/2]).
+-export([sync_orders/0, helper_sync/0, alter_order/2]).
 %%% Server callback functions
 -export([init/1, handle_call/3, handle_info/2,
 		handle_cast/2, terminate/2, code_change/3]).
@@ -25,7 +24,12 @@ start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 store_order(Type, Floor) ->
-    Key = make_order_key(Type),
+	Key = case Type of
+		      int ->
+			      {int, node()};
+		      _ ->
+			      {ext, Type}
+	      end,
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
     rpc:eval_everywhere(gen_server, call, [?MODULE, {store, Order}]).
 
@@ -82,14 +86,7 @@ handle_call({get_order, ElevFloor, Dir, AtFloor}, _From, OldOrder) ->
                               Num when Num < 0 ->
                                   {CurrentOrder, down}
                           end,
-    {reply, Command, NewOrder};
-
-% List orders
-handle_call({list}, _From, State) ->
-    io:format("Current order: ~p~n", [State]),
-	list_orders(ets:first(?ORTAB)),
-	{reply, ok, State}.
-
+    {reply, Command, NewOrder}.
 
 % Timeout
 handle_info(timer, State) ->
@@ -137,9 +134,7 @@ set_button_light(Key, State) ->
     case Type of
         ext ->
             elevator_driver:set_button_light(Dir, Floor, State);
-            %io:format("Floor ~p, Dir ~p, ~p~n", [Floor, Dir, State]);
         int when Dir == Node ->
-            %io:format("Floor ~p, internal, ~p~n", [Floor, State]),
             elevator_driver:set_button_light(int, Floor, State);
         _ -> ok
     end.
@@ -147,15 +142,6 @@ set_button_light(Key, State) ->
 
 sync_orders() ->
     rpc:eval_everywhere(?MODULE, helper_sync, []).
-
-list() ->
-	gen_server:call(?MODULE, {list}).
-
-list_orders('$end_of_table') ->
-	ok;
-list_orders(Order) ->
-	io:format("~p~n", [ets:lookup(?ORTAB, Order)]),
-	list_orders(ets:next(?ORTAB, Order)).
 
 check_for_timeout([]) ->
 	ok;
@@ -168,15 +154,6 @@ check_for_timeout([[Type, Floor, Timestamp]|Tail]) ->
 		   ok
 	end,
 	check_for_timeout(Tail).
-
-make_order_key(Type) ->
-	Key = case Type of
-		      int ->
-			      {int, node()};
-		      _ ->
-			      {ext, Type}
-	      end,
-    Key.
 
 helper_sync() ->
     helper_sync(ets:first(?ORTAB)).
