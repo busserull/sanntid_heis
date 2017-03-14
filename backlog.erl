@@ -4,7 +4,6 @@
 -define(ORTOUT, 5000). % Order timeout (ms)
 -define(TOUTCHINT, 1000). % Timeout check interval (ms)
 -define(ORTAB, ordertable).
--define(MULTI_TOUT, 1000). % rpc:multicall timeout
 
 %%% API
 -export([start/0, store_order/2, get_order/3]).
@@ -28,7 +27,7 @@ start() ->
 store_order(Type, Floor) ->
     Key = make_order_key(Type),
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
-    rpc:multicall(gen_server, call, [?MODULE, {store, Order}], ?MULTI_TOUT).
+    rpc:eval_everywhere(gen_server, call, [?MODULE, {store, Order}]).
 
 get_order(ElevFloor, ElevDir, AtFloor) ->
     gen_server:call(?MODULE, {get_order, ElevFloor, ElevDir, AtFloor}).
@@ -129,8 +128,8 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%% Helper functions
 alter_order(Key, NewState) ->
-    rpc:multicall(gen_server, cast, [?MODULE,
-                 {alter, Key, NewState}], ?MULTI_TOUT).
+    rpc:eval_everywhere(gen_server, cast, [?MODULE,
+                 {alter, Key, NewState}]).
 
 set_button_light(Key, State) ->
     {{Type, Dir}, Floor} = Key,
@@ -147,7 +146,7 @@ set_button_light(Key, State) ->
 
 
 sync_orders() ->
-    rpc:multicall(?MODULE, helper_sync, [], ?MULTI_TOUT).
+    rpc:eval_everywhere(?MODULE, helper_sync, []).
 
 list() ->
 	gen_server:call(?MODULE, {list}).
@@ -185,5 +184,5 @@ helper_sync('$end_of_table') ->
     ok;
 helper_sync(Key) ->
     [Order] = ets:lookup(?ORTAB, Key),
-    rpc:multicall(gen_server, call, [?MODULE, {store, Order}], ?MULTI_TOUT),
+    rpc:eval_everywhere(gen_server, call, [?MODULE, {store, Order}]),
     helper_sync(ets:next(?ORTAB, Key)).
