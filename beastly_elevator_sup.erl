@@ -27,7 +27,7 @@ start_link() ->
 %%====================================================================
 
 init([]) ->
-    {ok, { {one_for_all, 1, 10},
+    {ok, { {one_for_all, 0, 10},
     [{elevator_driver,
         {elevator_controller, start_elevator, []},
         permanent, 5000, worker, [elevator_driver]},

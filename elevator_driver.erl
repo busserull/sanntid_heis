@@ -5,7 +5,8 @@
 
 %% API functions
 -export([start_link/2, set_motor_dir/1, set_button_light/3,
-         set_door_light/1, set_floor_indicator/1, set_stop_light/1]).
+         set_door_light/1, set_floor_indicator/1, set_stop_light/1,
+         get_floor/0]).
 
 %%% Interface to the callback module where this behaviour is used.
 -spec start_link(Module :: module(), Configs::term()) -> 
@@ -16,6 +17,7 @@
 -spec set_door_light(on|off) -> ok.
 -spec set_floor_indicator(Floor::integer()) -> ok.
 -spec set_stop_light(on|off) -> ok.
+-spec get_floor() -> Floor :: integer() | the_void.
 
 -callback event_button_pressed({up|down|int, Floor::integer()}) -> ok.
 -callback event_reached_new_floor(Floor::integer() | the_void) -> ok.
@@ -52,6 +54,8 @@ set_floor_indicator(Floor) ->
     gen_server:call(?MODULE, {elev_set_floor_indicator, Floor}).
 set_button_light(ButtonType, Floor, State) ->
     gen_server:call(?MODULE, {elev_l, ButtonType, Floor, State}).
+get_floor() ->
+    gen_server:call(?MODULE, {elev_get_floor_sensor_signal}).
 %%%----------------------------------------------------------------------
 %%% Callback functions from gen_server
 %%%----------------------------------------------------------------------
@@ -87,7 +91,6 @@ init_continue(#state{elevator_type = elevator} = State) ->
     Port = open_port({spawn_executable, ExtProgWithPath}, [{packet, 2}]),
     io:format("Port = ~p ~n", [Port]),
     0 = call_elevator({elev_init, elevator}, Port, State#state.external_timeout),
-    io:format("Elevator initialized~n"),
     init_finish(State#state{port = Port});
 
 init_continue(#state{elevator_type = simulator} = State) ->
@@ -103,6 +106,7 @@ init_continue(#state{elevator_type = simulator} = State) ->
     init_finish(State#state{simulator_socket = Socket}).
 
 init_finish(State) ->
+
     io:format("Elevator driver initialised.~n"),
     erlang:send_after(State#state.poll_period, self(), time_to_poll),
     {ok, State}.

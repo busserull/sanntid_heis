@@ -23,7 +23,7 @@
 start_link() ->
     gen_statem:start_link({local,?MODULE}, ?MODULE, [], []).
 start_elevator() ->
-    elevator_driver:start_link(?MODULE, elevator).
+    elevator_driver:start_link(?MODULE, simulator).
 
 %%%Elevator driver callbacks
 event_button_pressed(Button) ->
@@ -46,9 +46,15 @@ init([]) ->
     Data = #state{
             top_floor = get_env(number_of_floors) -1 ,
             door_open_period = get_env(door_open_period)},
-    io:format("Environment controller initialised ~n"),
-    elevator_driver:set_motor_dir(stop),
-    {ok, idle, Data#state{dir = stop}, [{state_timeout, 1000, nothing}]}.
+    case elevator_driver:get_floor() of
+        the_void ->
+            elevator_driver:set_motor_dir(up),
+            {ok, moving, Data#state{dir = up, pos = in_the_void}};
+        Floor ->
+            elevator_driver:set_motor_dir(stop),
+            {ok, idle, Data#state{dir = stop, last_floor = Floor, pos = at_floor}, 
+            [{state_timeout, 1000, nothing}]}
+    end.
 
 handle_event({call, Caller}, get_state, _State, Data) ->
     gen_statem:reply(Caller,
