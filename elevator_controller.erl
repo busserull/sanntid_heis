@@ -17,8 +17,7 @@
 -export([handle_event/4]).
 
 %%%State data
--record(state, {last_floor, dir, pos, top_floor, door_open_period,
-    traveling_timeout}).
+-record(state, {last_floor, dir, pos, top_floor, door_open_period}).
 
 %%%supervisor
 start_link() ->
@@ -46,8 +45,7 @@ init([]) ->
     process_flag(trap_exit, true),
     Data = #state{
             top_floor = get_env(number_of_floors) -1 ,
-            door_open_period = get_env(door_open_period),
-            traveling_timeout = get_env(traveling_timeout)},
+            door_open_period = get_env(door_open_period)},
     io:format("Environment controller initialised ~n"),
     elevator_driver:set_motor_dir(stop),
     {ok, {idle}, Data#state{dir = stop}, [{state_timeout, 1000, nothing}]}.
