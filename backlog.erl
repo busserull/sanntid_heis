@@ -54,31 +54,10 @@ init([]) ->
 handle_call({store, Order}, _From, State) ->
     ets:insert(?ORTAB, Order),
     {Key, _Status, _Timestamp} = Order,
-    Key,
-    %set_button_light(Key, on), %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% -> X
+    set_button_light(Key, on),
     {reply, ok, State};
 
-% Alter order
-%handle_call({alter, Key, complete}, _From, State) ->
-%    {{Type, Node}, Floor} = Key,
-%    ets:delete(?ORTAB, {{ext, up}, Floor}),
-%    ets:delete(?ORTAB, {{ext, down}, Floor}),
-%    set_button_light({{ext, up}, Floor}, off),
-%    set_button_light({{ext, down}, Floor}, off),
-%    case Type of
-%        int ->
-%            ets:delete(?ORTAB, {{int, Node}, Floor}),
-%            set_button_light({{int, Node}, Floor}, off);
-%        _ ->
-%            ok
-%    end,
-%    {reply, ok, State};
-%handle_call({alter, Key, NewState}, _From, State) ->
-%    Now = erlang:monotonic_time(),
-%    ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
-%    {reply, ok, State};
-
-% Get order %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Updates State
+% Get order
 handle_call(get_order, _From, {State, OldOrder}) ->
     {ElevFloor, Dir, AtFloor} = State,
     % If none, attempt to get some, then update global backlog
@@ -98,7 +77,6 @@ handle_call(get_order, _From, {State, OldOrder}) ->
         _ ->
             alter_order(CurrentOrder, claimed)
     end,
-    %
     Diff = case CurrentOrder of
                none ->
                    none;
@@ -110,7 +88,7 @@ handle_call(get_order, _From, {State, OldOrder}) ->
                               none ->
                                   {none, none};
                               Num when Num == 0 ->
-                                  % Do some clearing
+                                  alter_order(CurrentOrder, complete),
                                   {none, open_door};
                               Num when Num > 0 ->
                                   {CurrentOrder, up};
