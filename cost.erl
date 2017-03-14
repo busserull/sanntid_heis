@@ -9,7 +9,7 @@
 -define(DIFF_DIR_PENALTY, 1).
 -define(INITIAL_COST, 500).
 
--export([optimal/3, get_cost/3]).
+-export([optimal/3]).
 
 optimal(ElevFloor, ElevDir, Key) ->
     optimal(ElevFloor, ElevDir, Key, ?INITIAL_COST, none).
@@ -20,10 +20,12 @@ optimal(_ElevFloor, _ElevDir, '$end_of_table', _BestCost, Best) ->
 
 optimal(ElevFloor, ElevDir, Key, BestCost, Best) ->
     TotalCost = get_cost(ElevFloor, ElevDir, Key),
-    if
-        TotalCost < BestCost ->
+    case TotalCost of
+        invalid ->
+            optimal(ElevFloor, ElevDir, ets:next(?ORTAB, Key), BestCost, Best);
+        Cost when Cost < BestCost ->
             optimal(ElevFloor, ElevDir, ets:next(?ORTAB, Key), TotalCost, Key);
-        true ->
+        _ ->
             optimal(ElevFloor, ElevDir, ets:next(?ORTAB, Key), BestCost, Best)
     end.
 
@@ -50,7 +52,14 @@ get_cost(ElevFloor, ElevDir, Key) ->
                     queued ->
                         ?QUEUED_PENALTY;
                     timeout ->
-                        ?TIMEOUT_PENALTY
+                        ?TIMEOUT_PENALTY;
+                    _ ->
+                        invalid
                 end,
-    TotalCost = TypePen + DirPen + FloorPen + StatusPen,
+    TotalCost = case StatusPen of
+                    invalid ->
+                        invalid;
+                    _ ->
+                        TypePen + DirPen + FloorPen + StatusPen
+                end,
     TotalCost.
