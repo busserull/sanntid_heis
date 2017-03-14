@@ -9,26 +9,19 @@
 -define(DIFF_DIR_PENALTY, 3).
 -define(INITIAL_COST, 500).
 
--export([optimal/3, optimal/4]).
+-export([optimal/4]).
 
-optimal(ElevFloor, ElevDir, Key) -> 
-    {ProposedOrder, _Cost} = 
-    optimal(ElevFloor, ElevDir, Key, ?INITIAL_COST, none),
-    ProposedOrder.
-
-optimal(ElevFloor, ElevDir, Key, OldOrder) ->
-    {ProposedOrder, Cost} = 
-    optimal(ElevFloor, ElevDir, Key, ?INITIAL_COST, none),
-
-    case  get_cost(ElevFloor, ElevDir, OldOrder) > Cost of
-      true -> ProposedOrder;
-      false -> OldOrder
-    end.
+optimal(ElevFloor, ElevDir, StartKey, OldOrder) ->
+    OldCost = case OldOrder of
+      none -> ?INITIAL_COST;
+      _Old -> get_cost(ElevFloor, ElevDir, OldOrder)
+    end,
+    optimal(ElevFloor, ElevDir, StartKey, OldCost, OldOrder).
 
 
 %%% Helper functions
-optimal(_ElevFloor, _ElevDir, '$end_of_table', BestCost, Best) ->
-    {Best, BestCost};
+optimal(_ElevFloor, _ElevDir, '$end_of_table', _BestCost, Best) ->
+    Best;
 
 optimal(ElevFloor, ElevDir, Key, BestCost, Best) ->
     [{{{Type, Dir}, _Floor}, Status, _Time}] = ets:lookup(?ORTAB, Key),

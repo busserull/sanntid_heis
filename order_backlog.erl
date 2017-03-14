@@ -61,13 +61,7 @@ handle_call({get_order, ElevFloor, Dir, AtFloor}, _From, OldOrder) ->
       in_the_void when Dir == down ->
         ElevFloor - 1
     end,
-    CurrentOrder = case OldOrder of
-      none ->
-        cost:optimal(RealativeFloor, Dir, ets:first(?ORTAB));
-      _Order ->
-        cost:optimal(RealativeFloor, Dir, ets:first(?ORTAB), OldOrder)
-    end,
-    
+    CurrentOrder = cost:optimal(RealativeFloor,Dir,ets:first(?ORTAB), OldOrder),
     case CurrentOrder of
         OldOrder ->
             ok;
