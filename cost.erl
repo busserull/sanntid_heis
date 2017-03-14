@@ -19,7 +19,32 @@ optimal(_ElevFloor, _ElevDir, '$end_of_table', _BestCost, Best) ->
     Best;
 
 optimal(ElevFloor, ElevDir, Key, BestCost, Best) ->
-    TotalCost = get_cost(ElevFloor, ElevDir, Key),
+    {{{Type, Dir}, _Floor}, Status, _Time} = ets:lookup(?ORTAB, Key),
+    Node = node(),
+    LegalType = case Type of
+                    int when Node == Dir ->
+                        true;
+                    ext ->
+                        true;
+                    _ ->
+                        false
+                end,
+    LegalStatus = case Status of
+                      queued ->
+                          true;
+                      timeout ->
+                          true;
+                      _ ->
+                          false
+                  end,
+    Legal = LegalType and LegalStatus,
+
+    TotalCost = case Legal of
+                    false ->
+                        invalid;
+                    true ->
+                        get_cost(ElevFloor, ElevDir, Key)
+                end,
     case TotalCost of
         invalid ->
             optimal(ElevFloor, ElevDir, ets:next(?ORTAB, Key), BestCost, Best);
@@ -35,7 +60,7 @@ get_cost(ElevFloor, ElevDir, Key) ->
     TypePen = case Type of
                   int ->
                       ?INT_PENALTY;
-                  _Ext ->
+                  ext ->
                       ?EXT_PENALTY
               end,
     Node = node(),
@@ -52,14 +77,7 @@ get_cost(ElevFloor, ElevDir, Key) ->
                     queued ->
                         ?QUEUED_PENALTY;
                     timeout ->
-                        ?TIMEOUT_PENALTY;
-                    _ ->
-                        invalid
+                        ?TIMEOUT_PENALTY
                 end,
-    TotalCost = case StatusPen of
-                    invalid ->
-                        invalid;
-                    _ ->
-                        TypePen + DirPen + FloorPen + StatusPen
-                end,
+    TotalCost = TypePen + DirPen + FloorPen + StatusPen,
     TotalCost.
