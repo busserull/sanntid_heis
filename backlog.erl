@@ -6,10 +6,10 @@
 -define(ORTAB, ordertable).
 
 %%% API
--export([start/0, store_order/2, alter_order/2, notify_state/3,
-         get_order/0, list/0]).
+-export([start/0, store_order/2, get_order/3]).
+-export([list/0]).
 %%% Helper functions
--export([sync_orders/0, helper_sync/0, make_order_key/1]).
+-export([sync_orders/0, helper_sync/0, make_order_key/1, alter_order/2]).
 %%% Server callback functions
 -export([init/1, handle_call/3, handle_info/2,
 		handle_cast/2, terminate/2, code_change/3]).
@@ -18,9 +18,8 @@
 
 -spec start() -> ok.
 -spec store_order(up|down|int, Floor::integer()) -> ok.
--spec alter_order(Key::tuple(), claimed|timeout|complete) -> ok.
--spec notify_state(ElevFloor::integer(), up|down|stop, at_floor|in_the_void) -> ok.
--spec get_order() -> up|down|none|open_door.
+-spec get_order(ElevFloor::integer(), up|down|stop, at_floor|in_the_void) ->
+    up|down|none|open_door.
 
 start() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -30,15 +29,8 @@ store_order(Type, Floor) ->
 	Order = {{Key, Floor}, queued, erlang:monotonic_time()},
     rpc:multicall(gen_server, call, [?MODULE, {store, Order}]).
 
-notify_state(ElevFloor, ElevDir, AtFloor) ->
-    gen_server:call(?MODULE, {notify, {ElevFloor, ElevDir, AtFloor}}).
-
-alter_order(Key, NewState) ->
-    rpc:multicall(gen_server, cast, [?MODULE, {alter, Key, NewState}]).
-    %rpc:multicall(gen_server, call, [?MODULE, {alter, Key, NewState}]).
-
-get_order() ->
-    gen_server:call(?MODULE, get_order).
+get_order(ElevFloor, ElevDir, AtFloor) ->
+    gen_server:call(?MODULE, {get_order, ElevFloor, ElevDir, AtFloor}).
 
 %%% Server callbacks
 
@@ -46,9 +38,7 @@ get_order() ->
 init([]) ->
 	ets:new(?ORTAB, [set, named_table]),
     erlang:send_after(?TOUTCHINT, self(), timer),
-	{ok, {{0, stop, at_floor}, none}}.
-    % Likely incorrect inital state, this only
-    % impacts the first time get_cost is called
+	{ok, none}.
 
 % Store order
 handle_call({store, Order}, _From, State) ->
@@ -58,9 +48,7 @@ handle_call({store, Order}, _From, State) ->
     {reply, ok, State};
 
 % Get order
-handle_call(get_order, _From, {State, OldOrder}) ->
-    {ElevFloor, Dir, AtFloor} = State,
-    % If none, attempt to get some, then update global backlog
+handle_call({get_order, ElevFloor, Dir, AtFloor}, _From, OldOrder) ->
     CurrentOrder = case OldOrder of
                        none when AtFloor == at_floor ->
                            cost:optimal(ElevFloor, Dir, ets:first(?ORTAB));
@@ -96,12 +84,7 @@ handle_call(get_order, _From, {State, OldOrder}) ->
                                   {CurrentOrder, down}
                           end,
     io:format("Command is ~p~n", [Command]),
-    {reply, Command, {State, NewOrder}};
-
-% Update known elevator state %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Updates State
-handle_call({notify, NewState}, _From, {_OldState, OrderList}) ->
-    io:format("New state: ~p~n", [NewState]),
-    {reply, ok, {NewState, OrderList}};
+    {reply, Command, NewOrder};
 
 % List orders
 handle_call({list}, _From, State) ->
@@ -148,6 +131,9 @@ terminate(_Reason, _State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%% Helper functions
+alter_order(Key, NewState) ->
+    rpc:multicall(gen_server, cast, [?MODULE, {alter, Key, NewState}]).
+
 set_button_light(Key, State) ->
     {{Type, Dir}, Floor} = Key,
     Node = node(),
