@@ -88,9 +88,7 @@ handle_call({get_order, ElevFloor, Dir, AtFloor}, _From, OldOrder) ->
 
 % List orders
 handle_call({list}, _From, State) ->
-    {{Floor, Dir, AtFloor}, CurrentOrder} = State,
-    io:format("At ~p, moving ~p; ~p~n", [Floor, Dir, AtFloor]),
-    io:format("Current order: ~p~n", [CurrentOrder]),
+    io:format("Current order: ~p~n", [State]),
 	list_orders(ets:first(?ORTAB)),
 	{reply, ok, State}.
 
