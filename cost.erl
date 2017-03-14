@@ -4,9 +4,9 @@
 -define(INT_PENALTY, 0).
 -define(EXT_PENALTY, 1).
 -define(TIMEOUT_PENALTY, 0).
--define(QUEUED_PENALTY, 1).
+-define(QUEUED_PENALTY, 2).
 -define(SAME_DIR_PENALTY, 0).
--define(DIFF_DIR_PENALTY, 3).
+-define(DIFF_DIR_PENALTY, 10).
 -define(INITIAL_COST, 500).
 
 -export([optimal/4]).
@@ -77,7 +77,7 @@ get_cost(ElevFloor, ElevDir, Key) ->
                  _ ->
                      ?DIFF_DIR_PENALTY
              end,
-    FloorPen = abs(Floor - ElevFloor),
+    FloorPen = 2*abs(Floor - ElevFloor),
     StatusPen = case Status of
                     queued ->
                         ?QUEUED_PENALTY;
