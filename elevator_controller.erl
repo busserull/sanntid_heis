@@ -23,7 +23,8 @@
 start_link() ->
     gen_statem:start_link({local,?MODULE}, ?MODULE, [], []).
 start_elevator() ->
-    elevator_driver:start_link(?MODULE, simulator).
+    elevator_driver:start_link(?MODULE, 
+        [{elevator_type, simulator},{simulator_port, get_env(simulator_port)}]).
 
 %%%Elevator driver callbacks
 event_button_pressed(Button) ->
