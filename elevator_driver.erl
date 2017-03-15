@@ -1,5 +1,4 @@
 -module(elevator_driver).
--author('andrevaa@stud.ntnu.no').
 
 -behavior(gen_server).
 
@@ -29,7 +28,7 @@
 -record(state, {last_floor, button_list, elevator_type, port, callback_module,
                 top_floor = 3,
                 number_of_elevators = 1,
-                poll_period = 50,
+                poll_period = 100,
                 external_program = "elevator",
                 external_timeout = 3000,
                 simulator_ip = {127,0,0,1},
@@ -106,8 +105,6 @@ init_continue(#state{elevator_type = simulator} = State) ->
     init_finish(State#state{simulator_socket = Socket}).
 
 init_finish(State) ->
-
-    io:format("Elevator driver initialised.~n"),
     erlang:send_after(State#state.poll_period, self(), time_to_poll),
     {ok, State}.
 
