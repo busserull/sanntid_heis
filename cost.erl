@@ -5,6 +5,7 @@
 -define(EXT_PENALTY, 1).
 -define(TIMEOUT_PENALTY, 0).
 -define(QUEUED_PENALTY, 2).
+-define(MINE_ORDER_PENALTY, 2).
 -define(SAME_DIR_PENALTY, 0).
 -define(DIFF_DIR_PENALTY, 10).
 -define(INITIAL_COST, 500).
@@ -34,10 +35,13 @@ optimal(ElevFloor, ElevDir, Key, BestCost, Best) ->
                     _ ->
                         false
                 end,
+    Node = node(),
     LegalStatus = case Status of
                       queued ->
                           true;
                       timeout ->
+                          true;
+                      {claimed, Node} ->
                           true;
                       _ ->
                           false
@@ -68,30 +72,29 @@ get_cost(ElevFloor, ElevDir, Key) ->
                   ext ->
                       ?EXT_PENALTY
               end,
-    Node = node(),
+    IntNode = node(),
     TopFloor = get_env(number_of_floors) - 1,
     DirPen = 
     case Dir of
-        Node when ElevDir == up, ElevFloor =< Floor -> ?SAME_DIR_PENALTY;
-        Node when ElevDir == down, ElevFloor >= Floor -> ?SAME_DIR_PENALTY;
+        IntNode when ElevDir == up, ElevFloor =< Floor -> ?SAME_DIR_PENALTY;
+        IntNode when ElevDir == down, ElevFloor >= Floor -> ?SAME_DIR_PENALTY;
         ElevDir when ElevDir == up, ElevFloor =< Floor -> ?SAME_DIR_PENALTY;
         ElevDir when ElevDir == down, ElevFloor >= Floor -> ?SAME_DIR_PENALTY;
-        _ when ElevDir == up, Floor == TopFloor -> ?SAME_DIR_PENALTY;
-        _ when ElevDir == down, Floor == 0 -> ?SAME_DIR_PENALTY;
-        _ when ElevDir == stop -> ?SAME_DIR_PENALTY;
-        _ -> ?DIFF_DIR_PENALTY
+        _OrdDir when ElevDir == up, Floor == TopFloor -> ?SAME_DIR_PENALTY;
+        _OrdDir when ElevDir == down, Floor == 0 -> ?SAME_DIR_PENALTY;
+        _OrdDir when ElevDir == stop -> ?SAME_DIR_PENALTY;
+        _OrdDir -> ?DIFF_DIR_PENALTY
     end,
 
     FloorPen = 2*abs(Floor - ElevFloor),
-    
+
     StatusPen = case Status of
                     queued ->
                         ?QUEUED_PENALTY;
                     timeout ->
                         ?TIMEOUT_PENALTY;
-                    claimed -> 
-                        % Only used when deciding if one should change order
-                        ?QUEUED_PENALTY
+                    {claimed, IntNode} -> 
+                        ?MINE_ORDER_PENALTY
                 end,
     TotalCost = TypePen + DirPen + FloorPen + StatusPen,
     TotalCost.

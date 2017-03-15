@@ -66,8 +66,7 @@ handle_call({get_order, ElevFloor, Dir, AtFloor}, _From, OldOrder) ->
         OldOrder ->
             ok;
         _ ->
-            alter_order(CurrentOrder, claimed),
-            alter_order(OldOrder, queued)
+            alter_order(CurrentOrder, {claimed, node()})
     end,
     Diff = case CurrentOrder of
                none ->
@@ -91,7 +90,7 @@ handle_call({get_order, ElevFloor, Dir, AtFloor}, _From, OldOrder) ->
 % Timeout
 handle_info(timer, State) ->
 	erlang:send_after(?TOUTCHINT, self(), timer),
-    check_for_timeout(ets:match(?ORTAB, {{{ext, '$1'}, '$2'}, claimed, '$3'})),
+    check_for_timeout(ets:match(?ORTAB, {{{ext, '$1'}, '$2'}, {claimed, '$3'}, '$4'})),
 	{noreply, State};
 
 handle_info(_Msg, State) ->
@@ -112,6 +111,7 @@ handle_cast({alter, Key, complete}, State) ->
             ok
     end,
     {noreply, State};
+
 handle_cast({alter, Key, NewState}, State) ->
     Now = erlang:monotonic_time(),
     ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
