@@ -145,7 +145,7 @@ sync_orders() ->
 
 check_for_timeout([]) ->
 	ok;
-check_for_timeout([[Type, Floor, Timestamp]|Tail]) ->
+check_for_timeout([[Type, Floor, _Node, Timestamp]|Tail]) ->
 	Now = erlang:monotonic_time(),
 	Elapsed = erlang:convert_time_unit(Now - Timestamp, native, millisecond),
 	if Elapsed >= ?ORTOUT ->
