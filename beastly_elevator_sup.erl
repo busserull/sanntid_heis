@@ -22,7 +22,7 @@ start_link() ->
 %%====================================================================
 
 init([]) ->
-    {ok, { {one_for_all, 0, 10},
+    {ok, { {one_for_all, 1, 10},
     [{order_backlog,
         {order_backlog, start, []},
         permanent, 5000, worker, [order_backlog]},
