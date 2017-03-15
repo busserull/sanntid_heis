@@ -1,7 +1,7 @@
 -module(order_backlog).
 -behavior(gen_server).
 
--define(ORTOUT, 5000). % Order timeout (ms)
+-define(ORTOUT, 10000). % Order timeout (ms)
 -define(TOUTCHINT, 1000). % Timeout check interval (ms)
 -define(ORTAB, ordertable).
 
@@ -112,6 +112,19 @@ handle_cast({alter, Key, complete}, State) ->
     end,
     {noreply, State};
 
+handle_cast({alter, Key, NewState = {claimed, ClaimerNode}}, State) ->
+    {{Type, Node}, Floor} = Key,
+    Now = erlang:monotonic_time(),
+    ets:update_element(?ORTAB, {{ext, up}, Floor}, [{2, NewState}, {3, Now}]),
+    ets:update_element(?ORTAB, {{ext, down}, Floor}, [{2, NewState}, {3, Now}]),
+    case Type of
+        int when ClaimerNode == Node ->
+            ets:update_element(?ORTAB, {{int, Node}, Floor}, [{2, NewState}, {3, Now}]);
+        _ ->
+            ok
+    end,
+    {noreply, State};
+
 handle_cast({alter, Key, NewState}, State) ->
     Now = erlang:monotonic_time(),
     ets:update_element(?ORTAB, Key, [{2, NewState}, {3, Now}]),
@@ -138,7 +151,6 @@ set_button_light(Key, State) ->
             elevator_driver:set_button_light(int, Floor, State);
         _ -> ok
     end.
-
 
 sync_orders() ->
     rpc:eval_everywhere(?MODULE, helper_sync, []).

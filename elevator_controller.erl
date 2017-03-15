@@ -24,7 +24,7 @@ start_link() ->
     gen_statem:start_link({local,?MODULE}, ?MODULE, [], []).
 start_elevator() ->
     elevator_driver:start_link(?MODULE, 
-        [{elevator_type, simulator},{simulator_port, get_env(simulator_port)}]).
+        [{elevator_type, elevator},{simulator_port, get_env(simulator_port)}]).
 
 %%%Elevator driver callbacks
 event_button_pressed(Button) ->
@@ -53,7 +53,7 @@ init([]) ->
         Floor ->
             elevator_driver:set_motor_dir(stop),
             {ok, idle, Data#state{dir = stop, last_floor = Floor, pos = at_floor}, 
-            [{state_timeout, 1000, look_for_order}]}
+            [{state_timeout, 300, look_for_order}]}
     end.
 %%get_state
 handle_event({call, Caller}, get_state, _State, Data) ->
@@ -109,13 +109,13 @@ choose_new_state(Data) ->
 enter_door_open_state(Data) ->
     elevator_driver:set_motor_dir(stop),
     elevator_driver:set_door_light(on),
-    {next_state, door_open, Data#state{dir = stop},
+    {next_state, door_open, Data,
         [{state_timeout, Data#state.door_open_period, close_door}]}.
 
 enter_idle_state(Data) ->
     elevator_driver:set_motor_dir(stop),
     {next_state, idle, Data#state{dir = stop},
-    [{state_timeout, 1000, look_for_order}]}.
+    [{state_timeout, 300, look_for_order}]}.
 
 enter_moving_state(Dir, Data) ->
     elevator_driver:set_motor_dir(Dir),
