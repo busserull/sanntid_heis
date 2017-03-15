@@ -69,15 +69,21 @@ get_cost(ElevFloor, ElevDir, Key) ->
                       ?EXT_PENALTY
               end,
     Node = node(),
-    DirPen = case Dir of
-                 Node ->
-                     ?INT_PENALTY;
-                 ElevDir ->
-                     ?SAME_DIR_PENALTY;
-                 _ ->
-                     ?DIFF_DIR_PENALTY
-             end,
+    TopFloor = get_env(number_of_floors) - 1,
+    DirPen = 
+    case Dir of
+        Node when ElevDir == up, ElevFloor =< Floor -> ?SAME_DIR_PENALTY;
+        Node when ElevDir == down, ElevFloor >= Floor -> ?SAME_DIR_PENALTY;
+        ElevDir when ElevDir == up, ElevFloor =< Floor -> ?SAME_DIR_PENALTY;
+        ElevDir when ElevDir == down, ElevFloor >= Floor -> ?SAME_DIR_PENALTY;
+        _ when ElevDir == up, Floor == TopFloor -> ?SAME_DIR_PENALTY;
+        _ when ElevDir == down, Floor == 0 -> ?SAME_DIR_PENALTY;
+        _ when ElevDir == stop -> ?SAME_DIR_PENALTY;
+        _ -> ?DIFF_DIR_PENALTY
+    end,
+
     FloorPen = 2*abs(Floor - ElevFloor),
+    
     StatusPen = case Status of
                     queued ->
                         ?QUEUED_PENALTY;
@@ -89,3 +95,8 @@ get_cost(ElevFloor, ElevDir, Key) ->
                 end,
     TotalCost = TypePen + DirPen + FloorPen + StatusPen,
     TotalCost.
+
+get_env(Environment)->
+    {ok,Value} = application:get_env(Environment),
+    Value.
+

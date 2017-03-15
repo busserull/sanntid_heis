@@ -74,14 +74,14 @@ handle_event(cast, {reached_new_floor, the_void}, _State, Data) ->
 handle_event(cast, {reached_new_floor, NewFloor}, _State, Data) ->
     elevator_driver:set_floor_indicator(NewFloor),
     NewData = Data#state{last_floor = NewFloor, pos = at_floor},
-    deside_what_to_do(?BACKLOG:get_order(NewFloor, Data#state.dir, at_floor), NewData);
+    choose_new_state(NewData);
 
 handle_event(state_timeout, close_door, door_open, Data) ->
     elevator_driver:set_door_light(off),
-    deside_what_to_do(?BACKLOG:get_order(Data#state.last_floor, Data#state.dir, Data#state.pos), Data);
+    choose_new_state(Data);
 
 handle_event(state_timeout, look_for_order, idle, Data) ->
-    deside_what_to_do(?BACKLOG:get_order(Data#state.last_floor, Data#state.dir, Data#state.pos), Data).
+    choose_new_state(Data).
 
 terminate(_Reason, _State, _Data) ->
     ok.
@@ -93,7 +93,9 @@ code_change(_Vsn, State, Data, _Extra) ->
 %%% Internal functions
 %%%----------------------------------------------------------------------
 
-deside_what_to_do(Order, Data) ->
+choose_new_state(Data) ->
+    Order = 
+    ?BACKLOG:get_order(Data#state.last_floor, Data#state.dir, Data#state.pos),
     case Order of
         open_door ->
             enter_door_open_state(Data);
