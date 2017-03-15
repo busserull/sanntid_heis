@@ -10,14 +10,10 @@
 -define(DIFF_DIR_PENALTY, 10).
 -define(INITIAL_COST, 500).
 
--export([optimal/4]).
+-export([optimal/3]).
 
-optimal(ElevFloor, ElevDir, StartKey, OldOrder) ->
-    OldCost = case OldOrder of
-      none -> ?INITIAL_COST;
-      _Old -> get_cost(ElevFloor, ElevDir, OldOrder)
-    end,
-    optimal(ElevFloor, ElevDir, StartKey, OldCost, OldOrder).
+optimal(ElevFloor, ElevDir, StartKey) ->
+    optimal(ElevFloor, ElevDir, StartKey, ?INITIAL_COST, none).
 
 
 %%% Helper functions
