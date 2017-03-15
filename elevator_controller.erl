@@ -54,32 +54,32 @@ init([]) ->
             {ok, idle, Data#state{dir = stop, last_floor = Floor, pos = at_floor}, 
             [{state_timeout, 1000, look_for_order}]}
     end.
-
+%%get_state
 handle_event({call, Caller}, get_state, _State, Data) ->
     gen_statem:reply(Caller,
         {Data#state.last_floor, Data#state.dir, Data#state.pos}),
     keep_state_and_data;
-
+%%button_pressed
 handle_event(cast, {button_pressed, {ButtonType, Floor}}, _State, _Data) ->
     ?BACKLOG:store_order(ButtonType, Floor),
     keep_state_and_data;
-
+%%set_button_light
 handle_event(cast,{set_button_light,{ButtonType,Floor},Value},_State,_Data) ->
     elevator_driver:set_button_light(ButtonType,Floor,Value),
     keep_state_and_data;
-
+%%exited floor
 handle_event(cast, {reached_new_floor, the_void}, _State, Data) ->
     {keep_state, Data#state{pos = in_the_void}};
-
+%%reached floor
 handle_event(cast, {reached_new_floor, NewFloor}, _State, Data) ->
     elevator_driver:set_floor_indicator(NewFloor),
     NewData = Data#state{last_floor = NewFloor, pos = at_floor},
     choose_new_state(NewData);
-
+%% close door
 handle_event(state_timeout, close_door, door_open, Data) ->
     elevator_driver:set_door_light(off),
     choose_new_state(Data);
-
+%% look for order
 handle_event(state_timeout, look_for_order, idle, Data) ->
     choose_new_state(Data).
 

@@ -1,8 +1,3 @@
-%%%-------------------------------------------------------------------
-%% @doc beastly_elevator top level supervisor.
-%% @end
-%%%-------------------------------------------------------------------
-
 -module(beastly_elevator_sup).
 
 -behaviour(supervisor).

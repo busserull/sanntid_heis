@@ -28,7 +28,7 @@
 -record(state, {last_floor, button_list, elevator_type, port, callback_module,
                 top_floor = 3,
                 number_of_elevators = 1,
-                poll_period = 100,
+                poll_period = 50,
                 external_program = "elevator",
                 external_timeout = 3000,
                 simulator_ip = {127,0,0,1},
